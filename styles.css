@@ -87,6 +87,7 @@ img { max-width: 100%; display: block; }
   align-items: center;
   gap: 8px;
   min-width: 0;
+  flex: 1 1 auto;
   padding: 0;
   border: 0;
   background: transparent;
@@ -105,7 +106,12 @@ img { max-width: 100%; display: block; }
   letter-spacing: -0.03em;
   line-height: 1.1;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+.app-toolbar-inner > .primary,
+.app-toolbar-inner > .icon-btn { flex: none; }
 
 .eyebrow {
   margin: 0;
@@ -143,6 +149,8 @@ h2 { font-size: 20px; }
   padding: 8px 0;
 }
 
+a.ghost { text-decoration: none; }
+
 .ghost.compact { font-size: 13px; padding: 4px 0; }
 
 .icon-btn {
@@ -167,13 +175,14 @@ h2 { font-size: 20px; }
 
 .chip.active { background: var(--accent); color: var(--accent-ink); }
 
-.filters {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 4px;
+.filter-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
   margin: 0 0 12px;
 }
+
+.filter-field select { min-height: 44px; padding: 8px 12px; }
 
 .basis-note, .hint, .booting {
   color: var(--muted);
@@ -256,27 +265,34 @@ label, .field {
 }
 
 .prices {
-  width: 100%;
-  min-width: 720px;
-  border-collapse: collapse;
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .prices th, .prices td {
   padding: 12px 14px;
   text-align: left;
   border-bottom: 1px solid var(--line);
-  vertical-align: middle;
+  vertical-align: top;
   background: var(--card);
+  background-clip: padding-box;
+  white-space: nowrap;
 }
 
 .prices th {
-  position: sticky;
-  top: var(--toolbar);
-  z-index: 2;
   background: var(--head);
   font-size: 13px;
   color: var(--muted);
 }
+
+.col-item { min-width: 220px; }
+.col-price { min-width: 108px; }
+.col-store { min-width: 128px; }
+.col-date { min-width: 132px; }
+.col-unit { min-width: 150px; }
+.col-category { min-width: 120px; }
 
 .prices th.num, .prices td.num { text-align: right; }
 
@@ -305,16 +321,32 @@ label, .field {
 .prices td.sticky, .prices th.sticky {
   position: sticky;
   left: 0;
-  z-index: 1;
+  z-index: 2;
+  background: var(--card);
+  box-shadow: 1px 0 0 var(--line);
 }
 
-.prices th.sticky { z-index: 3; }
+.prices tbody tr:hover td.sticky { background: var(--row-hover); }
+
+.prices tbody tr.is-under-target td.sticky {
+  background: color-mix(in srgb, var(--down) 14%, var(--card));
+}
+
+.prices tbody tr.is-under-target:hover td.sticky {
+  background: color-mix(in srgb, var(--down) 24%, var(--card));
+}
+
+.prices th.sticky {
+  z-index: 3;
+  background: var(--head);
+}
 
 .item-cell {
   display: flex;
   gap: 10px;
-  align-items: center;
-  min-width: 190px;
+  align-items: flex-start;
+  min-width: 220px;
+  max-width: 280px;
 }
 
 .item-copy { display: grid; gap: 2px; min-width: 0; }
@@ -324,6 +356,8 @@ label, .field {
   font-weight: 700;
   text-decoration: none;
 }
+
+.item-link, .item-copy .meta { white-space: normal; overflow-wrap: anywhere; }
 
 .item-link:hover { text-decoration: underline; }
 
@@ -373,9 +407,55 @@ label, .field {
   font-weight: 700;
   background: color-mix(in srgb, var(--down) 16%, var(--card));
   color: var(--down);
+  white-space: nowrap;
+}
+
+.badge-target {
+  background: color-mix(in srgb, var(--accent) 18%, var(--card));
+  color: var(--accent);
 }
 
 tr.is-lowest td.unit { box-shadow: inset 3px 0 0 var(--down); }
+
+tr.is-under-target td {
+  background: color-mix(in srgb, var(--down) 14%, var(--card));
+}
+
+.prices tbody tr.is-under-target:hover td {
+  background: color-mix(in srgb, var(--down) 24%, var(--card));
+}
+
+.prices td.num .badge { margin-left: 8px; vertical-align: middle; }
+
+.chart-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 8px 4px;
+  margin-bottom: 8px;
+}
+
+.history-chart { width: 100%; height: auto; display: block; }
+.history-chart path { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.history-chart circle { fill: var(--accent); }
+.history-chart .target-line { stroke: var(--down); stroke-width: 1.5; stroke-dasharray: 5 4; }
+
+.month-title { font-size: 16px; margin: 18px 0 8px; }
+
+.history-table th, .history-table td { position: static; box-shadow: none; }
+.history-table tbody tr { cursor: default; }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 .photo-picker { display: grid; gap: 10px; }
 
@@ -460,5 +540,5 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @media (max-width: 640px) {
   h1 { font-size: 24px; }
   .toolbar-title { font-size: 16px; }
-  .row { grid-template-columns: 1fr; }
+  .row, .filter-row { grid-template-columns: 1fr; }
 }

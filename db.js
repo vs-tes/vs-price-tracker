@@ -8,6 +8,7 @@ const DB_NAME = "vs-price-tracker";
 const DB_VERSION = 1;
 
 export const CURRENCIES = ["JPY", "PHP", "USD"];
+export const DEFAULT_CATEGORIES = ["Groceries", "Hardware", "Household"];
 
 export const DEFAULT_SETTINGS = {
   theme: "light",
@@ -16,6 +17,7 @@ export const DEFAULT_SETTINGS = {
   volumeBasis: "100ml",
   lengthBasis: "1m",
   stores: [],
+  categories: DEFAULT_CATEGORIES,
 };
 
 function openDb() {
@@ -108,11 +110,24 @@ export async function deletePhoto(id) {
   await txDone(tx);
 }
 
+function uniqueNames(values) {
+  const seen = new Set();
+  const names = [];
+  for (const value of values || []) {
+    const trimmed = String(value || "").trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    names.push(trimmed);
+  }
+  return names;
+}
+
 function cleanSettings(next) {
   const currency = CURRENCIES.includes(next?.currency) ? next.currency : DEFAULT_SETTINGS.currency;
-  const stores = Array.isArray(next?.stores)
-    ? next.stores.map((name) => String(name).trim()).filter(Boolean)
-    : [];
+  const stores = uniqueNames(next?.stores);
+  const categories = Array.isArray(next?.categories) ? uniqueNames(next.categories) : [...DEFAULT_CATEGORIES];
   return {
     id: "app",
     theme: next?.theme === "dark" ? "dark" : "light",
@@ -121,7 +136,8 @@ function cleanSettings(next) {
     volumeBasis: next?.volumeBasis || DEFAULT_SETTINGS.volumeBasis,
     lengthBasis: next?.lengthBasis || DEFAULT_SETTINGS.lengthBasis,
     stores,
-    updatedAt: new Date().toISOString(),
+    categories,
+    updatedAt: next?.updatedAt || new Date().toISOString(),
   };
 }
 
@@ -130,11 +146,17 @@ export async function getSettings() {
   const tx = db.transaction("settings", "readonly");
   const row = (await requestToPromise(tx.objectStore("settings").get("app"))) || null;
   await txDone(tx);
-  return { ...DEFAULT_SETTINGS, ...(row || {}), stores: row?.stores || [] };
+  return cleanSettings({
+    ...DEFAULT_SETTINGS,
+    ...(row || {}),
+    stores: row?.stores || [],
+    categories: Array.isArray(row?.categories) ? row.categories : DEFAULT_CATEGORIES,
+    updatedAt: row?.updatedAt,
+  });
 }
 
 export async function saveSettings(next) {
-  const row = cleanSettings(next);
+  const row = cleanSettings({ ...next, updatedAt: new Date().toISOString() });
   const db = await openDb();
   const tx = db.transaction("settings", "readwrite");
   tx.objectStore("settings").put(row);
@@ -170,7 +192,7 @@ export async function exportData() {
   const photos = await listPhotosEncoded();
   return {
     app: "vs-price-tracker",
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     checks,
     photos,
@@ -181,6 +203,7 @@ export async function exportData() {
       volumeBasis: settings.volumeBasis,
       lengthBasis: settings.lengthBasis,
       stores: settings.stores || [],
+      categories: settings.categories || [],
     },
   };
 }

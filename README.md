@@ -6,20 +6,32 @@ Prices, photos, and stores stay **on this device** (IndexedDB). They are not sto
 
 ## Features
 
-- Table of item, price, store, date checked, and unit price
+- Table of item, price, store, category, date checked, and unit price
 - Unit price is calculated from the pack size (350 g, 2 m, 1 L, …)
 - Settings choose the comparison basis: per 100 g or per 1 kg, per 100 ml or per 1 L, per 1 m or per 10 cm, and per piece
 - Same item name is compared across stores. The lowest unit price is marked, and each later check shows the change versus the previous one
-- Instant search across item, store, and notes
+- Store and category menus filter the list
+- Price history for one item, grouped by month, with the price paid drawn over time
+- Optional target price. The row is marked when the price paid goes under it
+- Categories such as Groceries, Hardware, and Household. Add or rename them in Settings
+- Instant search across item, store, category, and notes
 - Sort by any column
 - Photo on each price (shelf, tag, or product)
 - Light and dark theme, currency (JPY, PHP, USD), editable store list
 - Export / import backup (JSON, photos included) and CSV
 - Works offline after the first load, including from the iPhone Home Screen
 
+## iPhone or desktop
+
+Open this in Safari on iPhone, or in any browser on a computer:
+
+https://vs-tes.github.io/vs-price-tracker/
+
+On iPhone, use Safari (not Chrome), then Share → **Add to Home Screen**. Open **Prices** from the new icon.
+
 ## GitHub Pages
 
-Publish branch `main` from the repository root (same setup as Kakei and Plant Care). The site will be:
+Hosted from branch `main` at the repository root, the same way as Kakei and Plant Care:
 
 https://vs-tes.github.io/vs-price-tracker/
 
@@ -38,7 +50,14 @@ On an iPhone on the same Wi-Fi, open `http://YOUR-MAC-IP:8791` in Safari, then S
 1. **Add price** — item, what you paid, store, date, and the pack size (for example 350 g).
 2. Use the **same item name** when you check that product again. The unit-price column is how a 350 g pack and a 1 kg pack are compared.
 3. Tap a column heading to sort. Search filters the table as you type.
-4. **Settings** — theme, currency, unit-price basis, stores, and backup.
+4. **Settings** — theme, currency, unit-price basis, stores, categories, and backup.
+5. Open an item name to see that item’s checks month by month.
+
+## Phone and this Mac
+
+Prices stay in the browser you saved them in. To copy them to your phone, or back to this Mac, use **Settings → Phone and Mac → Export backup**, then import that file on the other device.
+
+Live sync is not connected. Kakei and Plant Care sync through a separate server that does not include this price list. Each price already has an id and an edit time so a sync step can be added later without changing the screens.
 
 Changing the currency symbol does not convert numbers you already saved. Each price keeps the currency you picked when you logged it.
 
@@ -58,8 +77,5 @@ vs-price-tracker/
 
 ## Ideas not built yet
 
-- A sparkline of one item’s price over time
-- A target price, with the row marked when a check goes under it
 - Currency conversion (the way Kakei converts JPY, PHP, and USD)
-- Categories such as groceries, hardware, and household
-- Optional sync between phone and Mac
+- Live sync between phone and Mac

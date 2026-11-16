@@ -1,5 +1,6 @@
 import {
   CURRENCIES,
+  DEFAULT_CATEGORIES,
   deleteCheck,
   deletePhoto,
   exportData,
@@ -30,7 +31,9 @@ const DEFAULT_DIR = {
 let settings = null;
 let query = "";
 let storeFilter = "all";
+let categoryFilter = "all";
 let storeQuery = "";
+let categoryQuery = "";
 let sort = loadSort();
 let draft = null;
 let session = null;
@@ -150,6 +153,7 @@ function parseHash() {
   if (parts[0] === "settings") return { name: "settings" };
   if (parts[0] === "new") return { name: "form" };
   if (parts[0] === "edit" && parts[1]) return { name: "form", id: decodeURIComponent(parts[1]) };
+  if (parts[0] === "history" && parts[1]) return { name: "history", item: decodeURIComponent(parts[1]) };
   return { name: "home" };
 }
 
@@ -286,7 +290,7 @@ function compareRows(a, b) {
 function matchesQuery(row, q) {
   if (!q) return true;
   const size = sizeLabel(row).toLowerCase();
-  const haystack = [row.item, row.store, row.notes, size].join(" ").toLowerCase();
+  const haystack = [row.item, row.store, row.category, row.notes, size].join(" ").toLowerCase();
   return haystack.includes(q);
 }
 
@@ -310,10 +314,10 @@ function deltaHtml(row) {
   return `<span class="delta ${row.delta.kind}" title="Versus ${escapeAttr(prettyDate(row.delta.date))}">${text}</span>`;
 }
 
-function knownStores(checks) {
+function knownNames(saved, extras) {
   const seen = new Set();
   const names = [];
-  for (const name of [...(settings.stores || []), ...checks.map((row) => row.store)]) {
+  for (const name of [...(saved || []), ...(extras || [])]) {
     const trimmed = String(name || "").trim();
     if (!trimmed) continue;
     const key = trimmed.toLowerCase();
@@ -324,6 +328,79 @@ function knownStores(checks) {
   return names;
 }
 
+function knownStores(checks) {
+  return knownNames(settings.stores, checks.map((row) => row.store));
+}
+
+function knownCategories(checks) {
+  const saved = Array.isArray(settings.categories) ? settings.categories : DEFAULT_CATEGORIES;
+  return knownNames(saved, checks.map((row) => row.category));
+}
+
+function isUnderTarget(row) {
+  const target = Number(row.targetPrice);
+  const price = Number(row.price);
+  return target > 0 && Number.isFinite(price) && price < target;
+}
+
+function sameName(a, b) {
+  return normName(a) === normName(b);
+}
+
+function selectOptions(names, selected, allLabel) {
+  const options = [
+    `<option value="all" ${selected === "all" ? "selected" : ""}>${escapeHtml(allLabel)}</option>`,
+  ];
+  for (const name of names) {
+    options.push(
+      `<option value="${escapeAttr(name)}" ${selected === name ? "selected" : ""}>${escapeHtml(name)}</option>`
+    );
+  }
+  return options.join("");
+}
+
+function monthKey(iso) {
+  const text = String(iso || "");
+  return /^\d{4}-\d{2}/.test(text) ? text.slice(0, 7) : "unknown";
+}
+
+function monthLabel(key) {
+  if (key === "unknown") return "No date";
+  const [year, month] = key.split("-").map(Number);
+  return new Intl.DateTimeFormat("en", { month: "long", year: "numeric" }).format(new Date(year, month - 1, 1));
+}
+
+function historyChart(points, target) {
+  if (points.length < 2) {
+    return `<p class="hint">${points.length ? "One check so far. Add another month to see the line." : "Nothing to chart in this currency yet."}</p>`;
+  }
+  const w = 640;
+  const h = 168;
+  const padX = 12;
+  const padY = 16;
+  const values = points.map((point) => point.y);
+  if (target > 0) values.push(target);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min || 1;
+  const xAt = (index) => padX + (index / (points.length - 1)) * (w - padX * 2);
+  const yAt = (value) => padY + (1 - (value - min) / span) * (h - padY * 2);
+  const line = points
+    .map((point, index) => `${index ? "L" : "M"}${xAt(index).toFixed(1)} ${yAt(point.y).toFixed(1)}`)
+    .join(" ");
+  const dots = points
+    .map((point, index) => {
+      const label = `${prettyDate(point.date)} ${formatMoney(point.y, point.currency)}`;
+      return `<circle cx="${xAt(index).toFixed(1)}" cy="${yAt(point.y).toFixed(1)}" r="4"><title>${escapeHtml(label)}</title></circle>`;
+    })
+    .join("");
+  const targetLine =
+    target > 0
+      ? `<line class="target-line" x1="${padX}" x2="${w - padX}" y1="${yAt(target).toFixed(1)}" y2="${yAt(target).toFixed(1)}" />`
+      : "";
+  return `<svg class="history-chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Price over time">${targetLine}<path d="${line}" />${dots}</svg>`;
+}
+
 async function renderHome({ keepScroll = false, partial = false } = {}) {
   const token = ++homeToken;
   const routeAtStart = routeToken;
@@ -331,12 +408,16 @@ async function renderHome({ keepScroll = false, partial = false } = {}) {
   const checks = annotate(await listChecks());
   if (token !== homeToken || routeAtStart !== routeToken) return;
   const q = query.trim().toLowerCase();
+  const storeNames = knownStores(checks).sort((a, b) => a.localeCompare(b));
+  const categoryNames = knownCategories(checks).sort((a, b) => a.localeCompare(b));
+  if (storeFilter !== "all" && !storeNames.includes(storeFilter)) storeFilter = "all";
+  if (categoryFilter !== "all" && !categoryNames.includes(categoryFilter)) categoryFilter = "all";
   const filtered = checks.filter((row) => {
     if (storeFilter !== "all" && String(row.store || "") !== storeFilter) return false;
+    if (categoryFilter !== "all" && String(row.category || "") !== categoryFilter) return false;
     return matchesQuery(row, q);
   });
   filtered.sort(compareRows);
-  const storeNames = knownStores(checks).sort((a, b) => a.localeCompare(b));
   const thumbs = new Map();
   await Promise.all(
     filtered.map(async (row) => {
@@ -345,8 +426,8 @@ async function renderHome({ keepScroll = false, partial = false } = {}) {
   );
   if (token !== homeToken || routeAtStart !== routeToken) return;
 
-  const head = (key, label, numeric = false) =>
-    `<th class="${numeric ? "num" : ""} ${key === "item" ? "sticky" : ""}" scope="col" aria-sort="${ariaSort(key)}">
+  const head = (key, label, colClass, numeric = false) =>
+    `<th class="${colClass} ${numeric ? "num" : ""} ${key === "item" ? "sticky" : ""}" scope="col" aria-sort="${ariaSort(key)}">
       <button type="button" data-sort="${key}">${label} ${sortMark(key)}</button>
     </th>`;
 
@@ -357,8 +438,13 @@ async function renderHome({ keepScroll = false, partial = false } = {}) {
           const thumb = thumbs.get(row.id);
           const size = sizeLabel(row);
           const noteHit = q && row.notes && String(row.notes).toLowerCase().includes(q);
-          return `<tr data-edit="${escapeAttr(row.id)}" class="${row.lowest ? "is-lowest" : ""}" ${row.notes ? `title="${escapeAttr(row.notes)}"` : ""}>
-            <td class="sticky">
+          const underTarget = isUnderTarget(row);
+          const titleBits = [];
+          if (row.notes) titleBits.push(row.notes);
+          if (Number(row.targetPrice) > 0) titleBits.push(`Target ${formatMoney(row.targetPrice, currency)}`);
+          const rowClass = [row.lowest ? "is-lowest" : "", underTarget ? "is-under-target" : ""].filter(Boolean).join(" ");
+          return `<tr data-edit="${escapeAttr(row.id)}" class="${rowClass}" ${titleBits.length ? `title="${escapeAttr(titleBits.join(" · "))}"` : ""}>
+            <td class="sticky col-item">
               <div class="item-cell">
                 ${
                   thumb
@@ -366,17 +452,19 @@ async function renderHome({ keepScroll = false, partial = false } = {}) {
                     : `<span class="thumb-fallback" aria-hidden="true">¥</span>`
                 }
                 <div class="item-copy">
-                  <a class="item-link" href="#/edit/${encodeURIComponent(row.id)}">${escapeHtml(row.item)}</a>
+                  <a class="item-link" href="#/history/${encodeURIComponent(row.item)}">${escapeHtml(row.item)}</a>
                   ${size ? `<span class="meta">${escapeHtml(size)}</span>` : `<span class="meta">Size not set</span>`}
+                  ${row.category ? `<span class="meta">${escapeHtml(row.category)}</span>` : ""}
+                  ${underTarget ? `<span class="badge badge-target">Under target</span>` : ""}
                   ${row.lowest ? `<span class="badge">Lowest</span>` : ""}
                   ${noteHit ? `<span class="meta">${escapeHtml(row.notes)}</span>` : ""}
                 </div>
               </div>
             </td>
-            <td class="num">${formatMoney(row.price, currency)}</td>
-            <td>${row.store ? escapeHtml(row.store) : "—"}</td>
-            <td>${prettyDate(row.checkedAt)}</td>
-            <td class="num unit">
+            <td class="num col-price">${formatMoney(row.price, currency)}</td>
+            <td class="col-store">${row.store ? escapeHtml(row.store) : "—"}</td>
+            <td class="col-date">${prettyDate(row.checkedAt)}</td>
+            <td class="num unit col-unit">
               ${
                 row.compared
                   ? `<div class="unit-price"><strong>${formatMoney(row.compared.value, currency)}</strong><span class="per">/ ${escapeHtml(row.compared.short)}</span>${deltaHtml(row)}</div>`
@@ -405,28 +493,26 @@ async function renderHome({ keepScroll = false, partial = false } = {}) {
   app.innerHTML = checks.length
     ? `
       <h1 class="page-title">Price list</h1>
-      <input class="search" id="search" type="search" placeholder="Search items, stores, notes" value="${escapeAttr(query)}" autocomplete="off" />
-      ${
-        storeNames.length
-          ? `<div class="filters" role="tablist">${["all", ...storeNames]
-              .map(
-                (name) =>
-                  `<button type="button" class="chip ${storeFilter === name ? "active" : ""}" data-store-filter="${escapeAttr(name)}">${name === "all" ? "All stores" : escapeHtml(name)}</button>`
-              )
-              .join("")}</div>`
-          : ""
-      }
-      <p class="basis-note">Unit price uses the pack size. Basis: ${escapeHtml(basisSummary(settings))}.</p>
+      <input class="search" id="search" type="search" placeholder="Search items, stores, categories, notes" value="${escapeAttr(query)}" autocomplete="off" />
+      <div class="filter-row">
+        <label class="filter-field">Store
+          <select id="storeFilter">${selectOptions(storeNames, storeFilter, "All stores")}</select>
+        </label>
+        <label class="filter-field">Category
+          <select id="categoryFilter">${selectOptions(categoryNames, categoryFilter, "All categories")}</select>
+        </label>
+      </div>
+      <p class="basis-note">Unit price uses the pack size. Basis: ${escapeHtml(basisSummary(settings))}. The item name opens its price history. A row is marked when the price paid is under that item’s target.</p>
       ${showing}
       <div class="table-wrap">
         <table class="prices">
           <thead>
             <tr>
-              ${head("item", "Item")}
-              ${head("price", "Price", true)}
-              ${head("store", "Store")}
-              ${head("checkedAt", "Date checked")}
-              ${head("unitPrice", "Unit price", true)}
+              ${head("item", "Item", "col-item")}
+              ${head("price", "Price", "col-price", true)}
+              ${head("store", "Store", "col-store")}
+              ${head("checkedAt", "Date checked", "col-date")}
+              ${head("unitPrice", "Unit price", "col-unit", true)}
             </tr>
           </thead>
           <tbody id="priceRows">${body}</tbody>
@@ -441,6 +527,96 @@ async function renderHome({ keepScroll = false, partial = false } = {}) {
       </section>
     `;
   window.scrollTo(0, y);
+}
+
+async function renderHistory(route) {
+  const stamp = routeToken;
+  const label = String(route.item || "").trim();
+  const checks = annotate(await listChecks())
+    .filter((row) => sameName(row.item, label))
+    .sort(
+      (a, b) =>
+        String(a.checkedAt || "").localeCompare(String(b.checkedAt || "")) ||
+        String(a.createdAt || "").localeCompare(String(b.createdAt || ""))
+    );
+  if (stamp !== routeToken) return;
+  if (!checks.length) {
+    app.innerHTML = `
+      <section class="empty">
+        <h1>No history for this item</h1>
+        <p>Prices for “${escapeHtml(label) || "this item"}” are not on this device.</p>
+        <button class="primary" type="button" data-go="#/">Back to the list</button>
+      </section>`;
+    window.scrollTo(0, 0);
+    return;
+  }
+  const title = checks[checks.length - 1].item || label;
+  const latestCurrency = checks[checks.length - 1].currency || settings.currency;
+  const chartPoints = checks
+    .filter((row) => (row.currency || settings.currency) === latestCurrency && Number.isFinite(Number(row.price)))
+    .map((row) => ({ y: Number(row.price), date: row.checkedAt, currency: row.currency || settings.currency }));
+  const targetValues = checks.map((row) => Number(row.targetPrice)).filter((value) => value > 0);
+  const target = targetValues.length ? targetValues[targetValues.length - 1] : 0;
+  const skipped = checks.length - chartPoints.length;
+  const byMonth = new Map();
+  for (const row of checks) {
+    const key = monthKey(row.checkedAt);
+    if (!byMonth.has(key)) byMonth.set(key, []);
+    byMonth.get(key).push(row);
+  }
+  const months = [...byMonth.keys()].sort((a, b) => b.localeCompare(a));
+  const monthHtml = months
+    .map((key) => {
+      const rows = byMonth
+        .get(key)
+        .slice()
+        .sort((a, b) => String(b.checkedAt || "").localeCompare(String(a.checkedAt || "")));
+      const body = rows
+        .map((row) => {
+          const currency = row.currency || settings.currency;
+          const under = isUnderTarget(row);
+          return `<tr class="${under ? "is-under-target" : ""}">
+            <td class="col-date">${prettyDate(row.checkedAt)}</td>
+            <td class="col-store">${row.store ? escapeHtml(row.store) : "—"}</td>
+            <td class="col-category">${row.category ? escapeHtml(row.category) : "—"}</td>
+            <td class="num col-price">${formatMoney(row.price, currency)}${under ? `<span class="badge badge-target">Under target</span>` : ""}</td>
+            <td class="num col-unit">${
+              row.compared
+                ? `${formatMoney(row.compared.value, currency)} <span class="per">/ ${escapeHtml(row.compared.short)}</span>`
+                : "—"
+            }</td>
+            <td><a href="#/edit/${encodeURIComponent(row.id)}">Edit</a></td>
+          </tr>`;
+        })
+        .join("");
+      return `<h2 class="month-title">${escapeHtml(monthLabel(key))}</h2>
+        <div class="table-wrap">
+          <table class="prices history-table">
+            <thead>
+              <tr>
+                <th class="col-date" scope="col">Date</th>
+                <th class="col-store" scope="col">Store</th>
+                <th class="col-category" scope="col">Category</th>
+                <th class="num col-price" scope="col">Price</th>
+                <th class="num col-unit" scope="col">Unit price</th>
+                <th scope="col"><span class="visually-hidden">Edit</span></th>
+              </tr>
+            </thead>
+            <tbody>${body}</tbody>
+          </table>
+        </div>`;
+    })
+    .join("");
+
+  app.innerHTML = `
+    <h1 class="page-title">${escapeHtml(title)}</h1>
+    <p class="basis-note">${checks.length} check${checks.length === 1 ? "" : "s"}, newest first in each month. The line is the price paid in ${escapeHtml(latestCurrency)}.${
+      target > 0 ? ` The dashed line is the target, ${escapeHtml(formatMoney(target, latestCurrency))}.` : ""
+    }${skipped ? ` ${skipped} check${skipped === 1 ? "" : "s"} in another currency ${skipped === 1 ? "is" : "are"} in the table only.` : ""}</p>
+    <div class="chart-card">${historyChart(chartPoints, target)}</div>
+    ${monthHtml}
+  `;
+  window.scrollTo(0, 0);
 }
 
 function currencyOptions(selected) {
@@ -502,6 +678,7 @@ async function renderForm(route) {
     a.localeCompare(b)
   );
   const stores = knownStores(checks).sort((a, b) => a.localeCompare(b));
+  const categories = knownCategories(checks).sort((a, b) => a.localeCompare(b));
   const currency = value.currency || settings.currency;
   const unit = value.unit || "g";
 
@@ -534,12 +711,29 @@ async function renderForm(route) {
           <select name="currency">${currencyOptions(currency)}</select>
         </label>
       </div>
-      <label>Store
-        <input name="store" list="storeNames" value="${escapeAttr(value.store || "")}" placeholder="Market" autocomplete="off" />
-      </label>
+      <div class="row">
+        <label>Store
+          <input name="store" list="storeNames" value="${escapeAttr(value.store || "")}" placeholder="Market" autocomplete="off" />
+        </label>
+        <label>Category
+          <select name="category">
+            <option value="">No category</option>
+            ${categories
+              .map(
+                (name) =>
+                  `<option value="${escapeAttr(name)}" ${value.category === name ? "selected" : ""}>${escapeHtml(name)}</option>`
+              )
+              .join("")}
+          </select>
+        </label>
+      </div>
       <datalist id="storeNames">
         ${stores.map((name) => `<option value="${escapeAttr(name)}"></option>`).join("")}
       </datalist>
+      <label>Target price
+        <input name="targetPrice" type="number" inputmode="decimal" min="0" step="any" value="${value.targetPrice ?? ""}" placeholder="Optional" />
+      </label>
+      <p class="hint">Optional. Shared by every check with this item name. The list marks a row when the price you paid goes under it.</p>
       <label>Date checked
         <input name="checkedAt" type="date" required value="${escapeAttr(value.checkedAt || todayIso())}" />
       </label>
@@ -557,6 +751,7 @@ async function renderForm(route) {
       </label>
       <div class="form-actions">
         <button class="primary" type="submit">Save</button>
+        ${existing ? `<a class="ghost" href="#/history/${encodeURIComponent(existing.item || "")}">Price history</a>` : ""}
         ${existing ? `<button class="ghost" type="button" id="logAgain">Log again</button>` : ""}
         ${existing ? `<button class="danger" type="button" id="deleteCheck">Delete</button>` : ""}
       </div>
@@ -573,15 +768,30 @@ async function rememberStore(name) {
   settings = await saveSettings(settings);
 }
 
+async function shareTarget(item, targetPrice) {
+  const checks = await listChecks();
+  for (const row of checks) {
+    if (!sameName(row.item, item)) continue;
+    const current = Number(row.targetPrice) > 0 ? Number(row.targetPrice) : null;
+    if (current === targetPrice) continue;
+    await saveCheck({ ...row, targetPrice });
+  }
+}
+
 function readPriceForm(form) {
   const data = new FormData(form);
   const quantityRaw = String(data.get("quantity") ?? "").trim();
   const quantity = quantityRaw === "" ? null : Number(quantityRaw);
+  const targetRaw = String(data.get("targetPrice") ?? "").trim();
+  const targetNumber = targetRaw === "" ? null : Number(targetRaw);
   return {
     item: String(data.get("item") || "").trim(),
     price: Number(data.get("price")),
     currency: String(data.get("currency") || settings.currency),
     store: String(data.get("store") || "").trim(),
+    category: String(data.get("category") || "").trim(),
+    targetPrice: Number.isFinite(targetNumber) && targetNumber > 0 ? targetNumber : null,
+    targetRaw,
     checkedAt: String(data.get("checkedAt") || todayIso()),
     quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : null,
     unit: String(data.get("unit") || "g"),
@@ -626,10 +836,18 @@ function setPreview(url) {
 
 async function renderSettings() {
   const storeItems = (settings.stores || []).map((name, index) => ({ name, index }));
-  const keys = ["settings:theme", "settings:currency", "settings:basis", "settings:stores", "settings:backup"];
+  const categoryItems = (settings.categories || []).map((name, index) => ({ name, index }));
+  const keys = [
+    "settings:theme",
+    "settings:currency",
+    "settings:basis",
+    "settings:stores",
+    "settings:categories",
+    "settings:backup",
+  ];
   app.innerHTML = `
     <h1 class="page-title">Settings</h1>
-    <p class="hint">Saved on this device. Export a backup to copy prices and photos to another phone or computer.</p>
+    <p class="hint">Saved in this browser. Prices stay on this device until you export a backup and import it on your phone or this Mac. Live sync is not connected.</p>
     ${collapseControls(keys)}
     <form id="settingsForm" class="form">
       ${fold(
@@ -690,9 +908,34 @@ async function renderSettings() {
         </div>`
       )}
       ${fold(
+        "settings:categories",
+        "Categories",
+        `<p class="hint">These fill the category menu on the price list and on each price. Renaming a category updates prices that use it.</p>
+        <input class="search" id="categorySearch" type="search" placeholder="Search categories" value="${escapeAttr(categoryQuery)}" />
+        <ul class="edit-list" id="categoryList">
+          ${
+            categoryItems.length
+              ? categoryItems
+                  .map(
+                    ({ name, index }) => `<li>
+                      <input data-category-index="${index}" value="${escapeAttr(name)}" />
+                      <button type="button" class="danger compact" data-del-category="${index}">Delete</button>
+                    </li>`
+                  )
+                  .join("")
+              : `<li class="hint">No categories yet.</li>`
+          }
+          <li class="hint" id="categoryEmpty" hidden>No categories match.</li>
+        </ul>
+        <div class="add-row">
+          <input id="newCategory" placeholder="New category" />
+          <button type="button" class="primary" id="addCategory">Add</button>
+        </div>`
+      )}
+      ${fold(
         "settings:backup",
-        "Backup",
-        `<p class="hint">Export backup includes photos. Import replaces prices on this device. CSV is the table only, without photos.</p>
+        "Phone and Mac",
+        `<p class="hint">There is no live link between your phone and this Mac. Export a backup here, then import that file in the other browser. The backup includes photos. Import replaces prices on the device that imports it. CSV is the table only, without photos.</p>
         <div class="footer-links">
           <button class="ghost" type="button" id="exportBtn">Export backup</button>
           <button class="ghost" type="button" id="exportCsv">Export CSV</button>
@@ -705,19 +948,34 @@ async function renderSettings() {
     </form>
   `;
   filterStoreList();
+  filterCategoryList();
 }
 
-function filterStoreList() {
-  const q = storeQuery.trim().toLowerCase();
+function filterNamedList(listId, attr, emptyId, query, total) {
+  const q = query.trim().toLowerCase();
   let shown = 0;
-  app.querySelectorAll("#storeList [data-store-index]").forEach((input) => {
+  app.querySelectorAll(`#${listId} [${attr}]`).forEach((input) => {
     const li = input.closest("li");
     const match = !q || input.value.toLowerCase().includes(q);
     if (li) li.hidden = !match;
     if (match) shown += 1;
   });
-  const empty = app.querySelector("#storeEmpty");
-  if (empty) empty.hidden = shown !== 0 || !(settings.stores || []).length;
+  const empty = app.querySelector(`#${emptyId}`);
+  if (empty) empty.hidden = shown !== 0 || !total;
+}
+
+function filterStoreList() {
+  filterNamedList("storeList", "data-store-index", "storeEmpty", storeQuery, (settings.stores || []).length);
+}
+
+function filterCategoryList() {
+  filterNamedList(
+    "categoryList",
+    "data-category-index",
+    "categoryEmpty",
+    categoryQuery,
+    (settings.categories || []).length
+  );
 }
 
 function restoreCaret(id, start) {
@@ -765,7 +1023,20 @@ async function exportCsv() {
   const rows = annotate(await listChecks()).sort((a, b) =>
     String(b.checkedAt || "").localeCompare(String(a.checkedAt || ""))
   );
-  const header = ["item", "price", "currency", "store", "date checked", "quantity", "unit", "unit price", "unit basis", "notes"];
+  const header = [
+    "item",
+    "price",
+    "currency",
+    "store",
+    "category",
+    "target price",
+    "date checked",
+    "quantity",
+    "unit",
+    "unit price",
+    "unit basis",
+    "notes",
+  ];
   const lines = [header.map(csvCell).join(",")];
   for (const row of rows) {
     lines.push(
@@ -774,6 +1045,8 @@ async function exportCsv() {
         row.price,
         row.currency || settings.currency,
         row.store || "",
+        row.category || "",
+        row.targetPrice ?? "",
         row.checkedAt || "",
         row.quantity ?? "",
         unitById(row.unit)?.label || "",
@@ -798,6 +1071,7 @@ async function route() {
     applyTheme(settings.theme || localStorage.getItem("vspt-theme") || "light");
     if (current.name === "home") await renderHome();
     else if (current.name === "settings") await renderSettings();
+    else if (current.name === "history") await renderHistory(current);
     else await renderForm(current);
   } catch (error) {
     console.error(error);
@@ -845,13 +1119,6 @@ document.querySelector("#shell").addEventListener("click", async (event) => {
     return;
   }
 
-  const storeName = event.target.closest("[data-store-filter]")?.dataset.storeFilter;
-  if (storeName) {
-    storeFilter = storeFilter === storeName && storeName !== "all" ? "all" : storeName;
-    await renderHome({ keepScroll: true });
-    return;
-  }
-
   if (event.target.id === "addStore") {
     const input = app.querySelector("#newStore");
     const name = input?.value.trim();
@@ -875,6 +1142,34 @@ document.querySelector("#shell").addEventListener("click", async (event) => {
     if (!confirm(`Remove “${name}” from the store list? Prices keep that store name until you edit them.`)) return;
     settings.stores = settings.stores.filter((_, i) => i !== index);
     if (storeFilter === name) storeFilter = "all";
+    settings = await saveSettings(settings);
+    await renderSettings();
+    return;
+  }
+
+  if (event.target.id === "addCategory") {
+    const input = app.querySelector("#newCategory");
+    const name = input?.value.trim();
+    if (!name) return;
+    if ((settings.categories || []).some((category) => category.toLowerCase() === name.toLowerCase())) {
+      input.value = "";
+      return;
+    }
+    settings.categories = [...(settings.categories || []), name];
+    settings = await saveSettings(settings);
+    categoryQuery = "";
+    await renderSettings();
+    return;
+  }
+
+  const delCategory = event.target.closest("[data-del-category]")?.dataset.delCategory;
+  if (delCategory !== undefined) {
+    const index = Number(delCategory);
+    const name = settings.categories[index];
+    if (!name) return;
+    if (!confirm(`Remove “${name}” from the category list? Prices keep that category until you edit them.`)) return;
+    settings.categories = settings.categories.filter((_, i) => i !== index);
+    if (categoryFilter === name) categoryFilter = "all";
     settings = await saveSettings(settings);
     await renderSettings();
     return;
@@ -945,6 +1240,13 @@ document.querySelector("#shell").addEventListener("submit", async (event) => {
     if (pending && !(settings.stores || []).some((store) => store.toLowerCase() === pending.toLowerCase())) {
       settings.stores = [...(settings.stores || []), pending];
     }
+    const pendingCategory = app.querySelector("#newCategory")?.value.trim();
+    if (
+      pendingCategory &&
+      !(settings.categories || []).some((category) => category.toLowerCase() === pendingCategory.toLowerCase())
+    ) {
+      settings.categories = [...(settings.categories || []), pendingCategory];
+    }
     await persistSettingsFromForm(event.target);
     await renderSettings();
     const button = app.querySelector('#settingsForm button[type="submit"]');
@@ -968,6 +1270,10 @@ document.querySelector("#shell").addEventListener("submit", async (event) => {
     showFormError("Add a price of zero or more.");
     return;
   }
+  if (data.targetRaw && data.targetPrice == null) {
+    showFormError("Target price needs to be a number above zero, or leave it blank.");
+    return;
+  }
   const button = event.target.querySelector('button[type="submit"]');
   if (button) button.disabled = true;
   try {
@@ -979,6 +1285,8 @@ document.querySelector("#shell").addEventListener("submit", async (event) => {
       price: data.price,
       currency: CURRENCIES.includes(data.currency) ? data.currency : settings.currency,
       store: data.store,
+      category: data.category,
+      targetPrice: data.targetPrice,
       checkedAt: data.checkedAt || todayIso(),
       quantity: data.quantity,
       unit: unitById(data.unit) ? data.unit : "g",
@@ -990,6 +1298,7 @@ document.querySelector("#shell").addEventListener("submit", async (event) => {
     else if (session.removePhoto) await deletePhoto(id);
     photoUrls.delete(id);
     await rememberStore(data.store);
+    await shareTarget(data.item, data.targetPrice);
     session = null;
     go("#/");
   } catch (error) {
@@ -1060,6 +1369,41 @@ document.querySelector("#shell").addEventListener("change", async (event) => {
     return;
   }
 
+  if (event.target.id === "storeFilter") {
+    storeFilter = event.target.value || "all";
+    await renderHome({ keepScroll: true, partial: true });
+    return;
+  }
+
+  if (event.target.id === "categoryFilter") {
+    categoryFilter = event.target.value || "all";
+    await renderHome({ keepScroll: true, partial: true });
+    return;
+  }
+
+  if (event.target.dataset.categoryIndex !== undefined) {
+    const index = Number(event.target.dataset.categoryIndex);
+    const prev = settings.categories[index];
+    const next = event.target.value.trim();
+    if (!next || next === prev) {
+      event.target.value = prev || "";
+      return;
+    }
+    if (settings.categories.some((category, i) => i !== index && category.toLowerCase() === next.toLowerCase())) {
+      event.target.value = prev;
+      alert("That category is already in the list.");
+      return;
+    }
+    const checks = await listChecks();
+    for (const row of checks) {
+      if (row.category === prev) await saveCheck({ ...row, category: next });
+    }
+    settings.categories[index] = next;
+    if (categoryFilter === prev) categoryFilter = next;
+    settings = await saveSettings(settings);
+    return;
+  }
+
   if (event.target.form?.id === "settingsForm" && ["defaultCurrency", "weightBasis", "volumeBasis", "lengthBasis"].includes(event.target.id)) {
     await persistSettingsFromForm(event.target.form);
   }
@@ -1074,6 +1418,11 @@ document.querySelector("#shell").addEventListener("input", (event) => {
   if (event.target.id === "storeSearch") {
     storeQuery = event.target.value;
     filterStoreList();
+    return;
+  }
+  if (event.target.id === "categorySearch") {
+    categoryQuery = event.target.value;
+    filterCategoryList();
   }
 });
 
