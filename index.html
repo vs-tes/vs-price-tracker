@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#9a4b1f" />
+    <script>
+      document.documentElement.dataset.theme = localStorage.getItem("vspt-theme") || "light";
+    </script>
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Prices" />
+    <meta name="description" content="Offline price list. Compare packs by price per 100 g, per meter, and more." />
+    <title>VS Price Tracker</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icons/icon-192.png" type="image/png" sizes="192x192" />
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180.png" />
+    <link rel="stylesheet" href="./styles.css?v=4" />
+  </head>
+  <body>
+    <div id="shell">
+      <header id="toolbar" class="app-toolbar"></header>
+      <main id="app"><p class="booting">Opening…</p></main>
+    </div>
+    <script type="module" src="./app.js?v=4"></script>
+  </body>
+</html>

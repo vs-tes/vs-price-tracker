@@ -1,0 +1,9 @@
+.DS_Store
+*.log
+.vscode/
+.idea/
+
+# Price data stays in the browser. Do not commit exports.
+vs-price-tracker-backup*.json
+*-backup-*.json
+*.csv
