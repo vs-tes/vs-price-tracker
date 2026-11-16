@@ -19,7 +19,7 @@ Prices, photos, and stores stay **on this device** (IndexedDB). They are not sto
 
 ## GitHub Pages
 
-Hosted from branch `main` / root:
+Publish branch `main` from the repository root (same setup as Kakei and Plant Care). The site will be:
 
 https://vs-tes.github.io/vs-price-tracker/
 
