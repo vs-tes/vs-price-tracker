@@ -64,7 +64,7 @@ img { max-width: 100%; display: block; }
 }
 
 #shell.has-filterbar {
-  padding-bottom: calc(118px + var(--safe-bottom));
+  padding-bottom: calc(72px + var(--safe-bottom));
 }
 
 .app-toolbar {
@@ -92,7 +92,7 @@ img { max-width: 100%; display: block; }
   z-index: 40;
   max-width: 1040px;
   margin: 0 auto;
-  padding: 10px 16px calc(10px + var(--safe-bottom));
+  padding: 8px 12px calc(8px + var(--safe-bottom));
   background: var(--card);
   border-top: 1px solid var(--line);
   box-shadow: 0 -8px 24px rgba(90, 52, 24, 0.08);
@@ -201,18 +201,31 @@ a.ghost { text-decoration: none; }
 
 .filter-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
 }
 
 .filter-field {
-  display: grid;
+  display: flex;
+  align-items: center;
   gap: 6px;
+  min-width: 0;
+}
+
+.filter-field label {
+  flex: none;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .filter-field select {
-  min-height: 44px;
-  padding: 10px 12px;
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 10px;
   font-size: 16px;
 }
 
@@ -225,6 +238,11 @@ a.ghost { text-decoration: none; }
 .basis-note { margin: 0 0 12px; }
 
 .count-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin: 0 0 8px;
   color: var(--muted);
   font-size: 13px;
@@ -329,41 +347,85 @@ label, .field {
 .table-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
 
+.table-wrap.is-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
 .prices {
-  width: max-content;
-  min-width: 100%;
-  border-collapse: collapse;
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+html[data-freeze="1"] .prices {
+  min-width: max(100%, 32rem);
 }
 
 .prices th, .prices td {
-  padding: 12px 14px;
+  padding: 10px 12px;
   text-align: left;
   border-bottom: 1px solid var(--line);
   vertical-align: top;
   background: var(--card);
-  white-space: nowrap;
 }
 
 .prices th {
+  position: relative;
   background: var(--head);
   font-size: 13px;
   color: var(--muted);
 }
 
-.col-item { min-width: 220px; }
-.col-price { min-width: 108px; }
-.col-store { min-width: 128px; }
-.col-date { min-width: 132px; }
-.col-unit { min-width: 150px; }
-.col-category { min-width: 120px; }
+.col-item { width: var(--w-item, 34%); }
+.col-price { width: var(--w-price, 14%); }
+.col-store { width: var(--w-store, 16%); }
+.col-date { width: var(--w-checkedAt, 16%); }
+.col-unit { width: var(--w-unitPrice, 20%); }
+.col-category { width: 16%; }
 
-.prices th.num, .prices td.num { text-align: right; }
+.col-resizer {
+  position: absolute;
+  top: 0;
+  right: -8px;
+  z-index: 4;
+  width: 16px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+html[data-freeze="1"] .prices .col-item {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  box-shadow: 1px 0 0 var(--line);
+}
+
+html[data-freeze="1"] .prices th.col-item {
+  z-index: 3;
+  background: var(--head);
+}
+
+html[data-freeze="1"] .prices tbody tr:hover td.col-item {
+  background: var(--row-hover);
+}
+
+html[data-freeze="1"] .prices tbody tr.is-under-target td.col-item {
+  background: color-mix(in srgb, var(--down) 14%, var(--card));
+}
+
+.prices th.num, .prices td.num { text-align: right; white-space: nowrap; }
+.col-store, .col-date { overflow-wrap: anywhere; }
 
 .prices th button {
   display: inline-flex;
@@ -375,7 +437,9 @@ label, .field {
   font: inherit;
   font-weight: 700;
   cursor: pointer;
-  padding: 0;
+  padding: 0 10px 0 0;
+  white-space: normal;
+  text-align: inherit;
 }
 
 .prices th.num button { margin-left: auto; }
@@ -387,12 +451,25 @@ label, .field {
 .prices tbody tr:hover td { background: var(--row-hover); }
 .prices tbody tr:last-child td { border-bottom: 0; }
 
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.check-row input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+}
+
 .item-cell {
   display: flex;
   gap: 10px;
   align-items: flex-start;
-  min-width: 220px;
-  max-width: 280px;
+  min-width: 0;
 }
 
 .item-copy { display: grid; gap: 2px; min-width: 0; }
@@ -486,6 +563,8 @@ tr.is-under-target td {
 
 .month-title { font-size: 16px; margin: 18px 0 8px; }
 
+.history-table { table-layout: auto; }
+.history-table th, .history-table td { width: auto; }
 .history-table tbody tr { cursor: default; }
 
 .item-actions, .history-actions {
@@ -591,5 +670,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @media (max-width: 640px) {
   h1 { font-size: 24px; }
   .toolbar-title { font-size: 16px; }
-  .row, .filter-row { grid-template-columns: 1fr; }
+  .row { grid-template-columns: 1fr; }
+  .prices th, .prices td { padding: 8px 8px; }
+  .thumb, .thumb-fallback { width: 36px; height: 36px; }
 }

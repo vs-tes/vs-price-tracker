@@ -1,6 +1,7 @@
 import {
   CURRENCIES,
   DEFAULT_CATEGORIES,
+  DEFAULT_COL_WIDTHS,
   deleteCheck,
   deletePhoto,
   exportData,
@@ -43,7 +44,9 @@ let routeToken = 0;
 let homeToken = 0;
 let homeMeta = { hasPrices: false, storeNames: [], categoryNames: [] };
 const CUSTOM_VALUE = "__custom__";
+const COL_KEYS = ["item", "price", "store", "checkedAt", "unitPrice"];
 const photoUrls = new Map();
+let resizing = null;
 
 function loadSort() {
   try {
@@ -140,6 +143,23 @@ function formatMoney(amount, currency) {
   if (!Number.isFinite(number)) return "—";
   const text = new Intl.NumberFormat("en", { maximumFractionDigits: 2 }).format(number);
   return `${symbol}${text}`;
+}
+
+function neighborCol(key) {
+  const index = COL_KEYS.indexOf(key);
+  if (index < 0) return null;
+  return COL_KEYS[index === COL_KEYS.length - 1 ? index - 1 : index + 1];
+}
+
+function applyTableChrome() {
+  const root = document.documentElement;
+  root.dataset.freeze = settings?.freezeItemColumn ? "1" : "0";
+  const widths = settings?.colWidths || DEFAULT_COL_WIDTHS;
+  for (const key of COL_KEYS) {
+    const value = Number(widths[key]);
+    const pct = Number.isFinite(value) && value > 0 ? value : DEFAULT_COL_WIDTHS[key];
+    root.style.setProperty(`--w-${key}`, `${pct}%`);
+  }
 }
 
 function applyTheme(theme) {
@@ -507,8 +527,9 @@ async function renderHome({ keepScroll = false, partial = false } = {}) {
   if (token !== homeToken || routeAtStart !== routeToken) return;
 
   const head = (key, label, colClass, numeric = false) =>
-    `<th class="${colClass} ${numeric ? "num" : ""}" scope="col" aria-sort="${ariaSort(key)}">
+    `<th class="${colClass} ${numeric ? "num" : ""}" scope="col" data-col="${key}" aria-sort="${ariaSort(key)}">
       <button type="button" data-sort="${key}">${label} ${sortMark(key)}</button>
+      <span class="col-resizer" data-resize="${key}" aria-hidden="true"></span>
     </th>`;
 
   const body = filtered.length
@@ -564,14 +585,21 @@ async function renderHome({ keepScroll = false, partial = false } = {}) {
   const countEl = app.querySelector("#countLine");
   if (partial && rowsEl && countEl) {
     rowsEl.innerHTML = body;
-    countEl.textContent = countText;
+    const label = countEl.querySelector("span");
+    if (label) label.textContent = countText;
+    else countEl.textContent = countText;
     return;
   }
 
   homeMeta = { hasPrices: checks.length > 0, storeNames, categoryNames };
   renderToolbar(parseHash());
 
-  const showing = checks.length === 0 ? "" : `<p class="count-line" id="countLine">${countText}</p>`;
+  const showing =
+    checks.length === 0
+      ? ""
+      : `<p class="count-line" id="countLine"><span>${countText}</span>
+          <button class="ghost compact" type="button" id="freezeToggle">${settings.freezeItemColumn ? "Unfreeze" : "Freeze item"}</button>
+        </p>`;
 
   app.innerHTML = checks.length
     ? `
@@ -600,6 +628,7 @@ async function renderHome({ keepScroll = false, partial = false } = {}) {
         <button class="primary" type="button" data-go="#/new">Add price</button>
       </section>
     `;
+  applyTableChrome();
   window.scrollTo(0, y);
 }
 
@@ -946,6 +975,7 @@ async function renderSettings() {
   const categoryItems = (settings.categories || []).map((name, index) => ({ name, index }));
   const keys = [
     "settings:theme",
+    "settings:table",
     "settings:currency",
     "settings:basis",
     "settings:stores",
@@ -964,6 +994,18 @@ async function renderSettings() {
         <div class="theme-row">
           <button type="button" class="chip ${settings.theme === "light" ? "active" : ""}" data-theme-pick="light">Light</button>
           <button type="button" class="chip ${settings.theme === "dark" ? "active" : ""}" data-theme-pick="dark">Dark</button>
+        </div>`
+      )}
+      ${fold(
+        "settings:table",
+        "Table",
+        `<p class="hint">The table uses a share of the screen width, so columns grow and shrink when you zoom. On a computer, drag the edge of a column heading to resize. On iPhone, freeze the item column if you scroll sideways.</p>
+        <label class="check-row">
+          <input id="freezeItemColumn" type="checkbox" ${settings.freezeItemColumn ? "checked" : ""} />
+          Freeze item column
+        </label>
+        <div class="footer-links">
+          <button class="ghost" type="button" id="resetColWidths">Reset column widths</button>
         </div>`
       )}
       ${fold(
@@ -1104,12 +1146,15 @@ function readBasisForm(form) {
   settings.weightBasis = String(data.get("weightBasis") || settings.weightBasis);
   settings.volumeBasis = String(data.get("volumeBasis") || settings.volumeBasis);
   settings.lengthBasis = String(data.get("lengthBasis") || settings.lengthBasis);
+  const freeze = form.querySelector("#freezeItemColumn");
+  if (freeze) settings.freezeItemColumn = freeze.checked;
 }
 
 async function persistSettingsFromForm(form) {
   if (form) readBasisForm(form);
   settings = await saveSettings(settings);
   applyTheme(settings.theme);
+  applyTableChrome();
 }
 
 function download(filename, blob) {
@@ -1176,6 +1221,7 @@ async function route() {
     if (!settings) settings = await getSettings();
     if (token !== routeToken) return;
     applyTheme(settings.theme || localStorage.getItem("vspt-theme") || "light");
+    applyTableChrome();
     if (current.name === "home") await renderHome();
     else if (current.name === "settings") await renderSettings();
     else if (current.name === "history") await renderHistory(current);
@@ -1253,6 +1299,23 @@ document.querySelector("#shell").addEventListener("click", async (event) => {
   const expandAll = event.target.closest("[data-expand-all]")?.dataset.expandAll;
   if (expandAll) {
     expandAll.split(",").forEach((key) => applyFoldState(key, false));
+    return;
+  }
+
+  if (event.target.id === "freezeToggle") {
+    settings.freezeItemColumn = !settings.freezeItemColumn;
+    settings = await saveSettings(settings);
+    applyTableChrome();
+    event.target.textContent = settings.freezeItemColumn ? "Unfreeze" : "Freeze item";
+    const box = document.querySelector("#freezeItemColumn");
+    if (box) box.checked = settings.freezeItemColumn;
+    return;
+  }
+
+  if (event.target.id === "resetColWidths") {
+    settings.colWidths = { ...DEFAULT_COL_WIDTHS };
+    settings = await saveSettings(settings);
+    applyTableChrome();
     return;
   }
 
@@ -1594,6 +1657,13 @@ document.querySelector("#shell").addEventListener("change", async (event) => {
     return;
   }
 
+  if (event.target.id === "freezeItemColumn") {
+    settings.freezeItemColumn = event.target.checked;
+    settings = await saveSettings(settings);
+    applyTableChrome();
+    return;
+  }
+
   if (event.target.form?.id === "settingsForm" && ["defaultCurrency", "weightBasis", "volumeBasis", "lengthBasis"].includes(event.target.id)) {
     await persistSettingsFromForm(event.target.form);
   }
@@ -1615,6 +1685,67 @@ document.querySelector("#shell").addEventListener("input", (event) => {
     filterCategoryList();
   }
 });
+
+function applyResizeFromPointer(event) {
+  if (!resizing) return;
+  const sign = COL_KEYS.indexOf(resizing.key) < COL_KEYS.indexOf(resizing.other) ? 1 : -1;
+  const delta = ((event.clientX - resizing.startX) / resizing.wrapW) * 100 * sign;
+  let a = resizing.startA + delta;
+  let b = resizing.startB - delta;
+  const min = 10;
+  if (a < min) {
+    b -= min - a;
+    a = min;
+  }
+  if (b < min) {
+    a -= min - b;
+    b = min;
+  }
+  settings.colWidths = { ...(settings.colWidths || DEFAULT_COL_WIDTHS), [resizing.key]: a, [resizing.other]: b };
+  applyTableChrome();
+}
+
+async function endResize() {
+  if (!resizing) return;
+  resizing.wrap?.classList.remove("is-resizing");
+  resizing = null;
+  settings = await saveSettings(settings);
+}
+
+function cancelResize() {
+  if (!resizing) return;
+  resizing.wrap?.classList.remove("is-resizing");
+  resizing = null;
+}
+
+document.querySelector("#shell").addEventListener("pointerdown", (event) => {
+  const handle = event.target.closest("[data-resize]");
+  if (!handle) return;
+  const key = handle.dataset.resize;
+  const other = neighborCol(key);
+  const wrap = handle.closest(".table-wrap");
+  if (!key || !other || !wrap || !settings) return;
+  event.preventDefault();
+  const widths = { ...(settings.colWidths || DEFAULT_COL_WIDTHS) };
+  resizing = {
+    key,
+    other,
+    startX: event.clientX,
+    startA: Number(widths[key]) || DEFAULT_COL_WIDTHS[key],
+    startB: Number(widths[other]) || DEFAULT_COL_WIDTHS[other],
+    wrapW: wrap.clientWidth || 1,
+    wrap,
+    pointerId: event.pointerId,
+  };
+  handle.setPointerCapture?.(event.pointerId);
+  wrap.classList.add("is-resizing");
+});
+
+window.addEventListener("resize", () => applyTableChrome());
+window.visualViewport?.addEventListener("resize", () => applyTableChrome());
+window.addEventListener("pointermove", applyResizeFromPointer);
+window.addEventListener("pointerup", endResize);
+window.addEventListener("pointercancel", cancelResize);
 
 document.querySelector("#shell").addEventListener(
   "wheel",

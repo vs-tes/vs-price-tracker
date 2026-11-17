@@ -10,12 +10,22 @@ const DB_VERSION = 1;
 export const CURRENCIES = ["JPY", "PHP", "USD"];
 export const DEFAULT_CATEGORIES = ["Groceries", "Hardware", "Household"];
 
+export const DEFAULT_COL_WIDTHS = {
+  item: 34,
+  price: 14,
+  store: 16,
+  checkedAt: 16,
+  unitPrice: 20,
+};
+
 export const DEFAULT_SETTINGS = {
   theme: "light",
   currency: "JPY",
   weightBasis: "100g",
   volumeBasis: "100ml",
   lengthBasis: "1m",
+  freezeItemColumn: true,
+  colWidths: { ...DEFAULT_COL_WIDTHS },
   stores: [],
   categories: DEFAULT_CATEGORIES,
 };
@@ -153,6 +163,20 @@ function uniqueNames(values) {
   return names;
 }
 
+function cleanColWidths(raw) {
+  const keys = Object.keys(DEFAULT_COL_WIDTHS);
+  const next = {};
+  let sum = 0;
+  for (const key of keys) {
+    const value = Number(raw?.[key]);
+    next[key] = Number.isFinite(value) && value > 0 ? value : DEFAULT_COL_WIDTHS[key];
+    sum += next[key];
+  }
+  if (!(sum > 0)) return { ...DEFAULT_COL_WIDTHS };
+  for (const key of keys) next[key] = Math.round((next[key] / sum) * 1000) / 10;
+  return next;
+}
+
 function cleanSettings(next) {
   const currency = CURRENCIES.includes(next?.currency) ? next.currency : DEFAULT_SETTINGS.currency;
   const stores = uniqueNames(next?.stores);
@@ -164,6 +188,8 @@ function cleanSettings(next) {
     weightBasis: next?.weightBasis || DEFAULT_SETTINGS.weightBasis,
     volumeBasis: next?.volumeBasis || DEFAULT_SETTINGS.volumeBasis,
     lengthBasis: next?.lengthBasis || DEFAULT_SETTINGS.lengthBasis,
+    freezeItemColumn: next?.freezeItemColumn !== false,
+    colWidths: cleanColWidths(next?.colWidths),
     stores,
     categories,
     updatedAt: next?.updatedAt || new Date().toISOString(),
@@ -231,6 +257,8 @@ export async function exportData() {
       weightBasis: settings.weightBasis,
       volumeBasis: settings.volumeBasis,
       lengthBasis: settings.lengthBasis,
+      freezeItemColumn: settings.freezeItemColumn !== false,
+      colWidths: settings.colWidths,
       stores: settings.stores || [],
       categories: settings.categories || [],
     },
