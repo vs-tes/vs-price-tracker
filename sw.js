@@ -1,9 +1,9 @@
-const CACHE = "vs-price-tracker-v6";
+const CACHE = "vs-price-tracker-v7";
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=6",
-  "./app.js?v=6",
+  "./styles.css?v=7",
+  "./app.js?v=7",
   "./db.js",
   "./units.js",
   "./manifest.webmanifest",

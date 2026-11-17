@@ -9,6 +9,7 @@ import {
   getSettings,
   importData,
   listChecks,
+  renameItem,
   saveCheck,
   savePhoto,
   saveSettings,
@@ -39,6 +40,8 @@ let draft = null;
 let session = null;
 let routeToken = 0;
 let homeToken = 0;
+let homeMeta = { hasPrices: false, storeNames: [], categoryNames: [] };
+const CUSTOM_VALUE = "__custom__";
 const photoUrls = new Map();
 
 function loadSort() {
@@ -170,6 +173,49 @@ function logoSvg() {
   return `<img class="logo" src="./icons/icon.svg" alt="" />`;
 }
 
+function clearable(html) {
+  return `<span class="clearable">${html}<button type="button" class="clear-btn" data-clear aria-label="Clear">×</button></span>`;
+}
+
+function choiceOptions(names, selected, noneLabel, newLabel) {
+  const known = names.some((name) => name === selected);
+  const options = [`<option value="">${escapeHtml(noneLabel)}</option>`];
+  for (const name of names) {
+    options.push(
+      `<option value="${escapeAttr(name)}" ${selected === name ? "selected" : ""}>${escapeHtml(name)}</option>`
+    );
+  }
+  options.push(
+    `<option value="${CUSTOM_VALUE}" ${selected && !known ? "selected" : ""}>${escapeHtml(newLabel)}</option>`
+  );
+  return options.join("");
+}
+
+function choiceCustomValue(names, selected) {
+  const known = names.some((name) => name === selected);
+  return selected && !known ? selected : "";
+}
+
+function choiceHidden(names, selected) {
+  return selected && !names.some((name) => name === selected) ? "" : "hidden";
+}
+
+function resolveChoice(form, key) {
+  const pick = String(form[`${key}Pick`]?.value || "");
+  if (pick === CUSTOM_VALUE) return String(form[`${key}Custom`]?.value || "").trim();
+  return pick.trim();
+}
+
+function toggleChoiceCustom(select) {
+  const key = select.dataset.choice;
+  if (!key) return;
+  const custom = select.form?.querySelector(`[name="${key}Custom"]`);
+  if (!custom) return;
+  const isCustom = select.value === CUSTOM_VALUE;
+  custom.hidden = !isCustom;
+  if (isCustom) custom.focus();
+}
+
 function renderToolbar(route) {
   const isForm = route.name === "form";
   const isSettings = route.name === "settings";
@@ -202,7 +248,26 @@ function renderToolbar(route) {
       </button>
       <button class="primary compact" type="button" data-go="#/new" ${isForm && !route.id ? "disabled" : ""}>Add price</button>
     </nav>
+    ${route.name === "home" && homeMeta.hasPrices ? homeToolsHtml() : ""}
   `;
+}
+
+function homeToolsHtml() {
+  return `<div class="home-tools">
+    ${clearable(
+      `<input class="search" id="search" type="search" placeholder="Search items, stores, categories, notes" value="${escapeAttr(query)}" autocomplete="off" />`
+    )}
+    <div class="filter-row">
+      <div class="filter-field">
+        <label for="storeFilter">Store</label>
+        <select id="storeFilter">${selectOptions(homeMeta.storeNames, storeFilter, "All stores")}</select>
+      </div>
+      <div class="filter-field">
+        <label for="categoryFilter">Category</label>
+        <select id="categoryFilter">${selectOptions(homeMeta.categoryNames, categoryFilter, "All categories")}</select>
+      </div>
+    </div>
+  </div>`;
 }
 
 async function photoUrl(id) {
@@ -427,7 +492,7 @@ async function renderHome({ keepScroll = false, partial = false } = {}) {
   if (token !== homeToken || routeAtStart !== routeToken) return;
 
   const head = (key, label, colClass, numeric = false) =>
-    `<th class="${colClass} ${numeric ? "num" : ""} ${key === "item" ? "sticky" : ""}" scope="col" aria-sort="${ariaSort(key)}">
+    `<th class="${colClass} ${numeric ? "num" : ""}" scope="col" aria-sort="${ariaSort(key)}">
       <button type="button" data-sort="${key}">${label} ${sortMark(key)}</button>
     </th>`;
 
@@ -444,7 +509,7 @@ async function renderHome({ keepScroll = false, partial = false } = {}) {
           if (Number(row.targetPrice) > 0) titleBits.push(`Target ${formatMoney(row.targetPrice, currency)}`);
           const rowClass = [row.lowest ? "is-lowest" : "", underTarget ? "is-under-target" : ""].filter(Boolean).join(" ");
           return `<tr data-edit="${escapeAttr(row.id)}" class="${rowClass}" ${titleBits.length ? `title="${escapeAttr(titleBits.join(" · "))}"` : ""}>
-            <td class="sticky col-item">
+            <td class="col-item">
               <div class="item-cell">
                 ${
                   thumb
@@ -488,20 +553,14 @@ async function renderHome({ keepScroll = false, partial = false } = {}) {
     return;
   }
 
+  homeMeta = { hasPrices: checks.length > 0, storeNames, categoryNames };
+  renderToolbar(parseHash());
+
   const showing = checks.length === 0 ? "" : `<p class="count-line" id="countLine">${countText}</p>`;
 
   app.innerHTML = checks.length
     ? `
       <h1 class="page-title">Price list</h1>
-      <input class="search" id="search" type="search" placeholder="Search items, stores, categories, notes" value="${escapeAttr(query)}" autocomplete="off" />
-      <div class="filter-row">
-        <label class="filter-field">Store
-          <select id="storeFilter">${selectOptions(storeNames, storeFilter, "All stores")}</select>
-        </label>
-        <label class="filter-field">Category
-          <select id="categoryFilter">${selectOptions(categoryNames, categoryFilter, "All categories")}</select>
-        </label>
-      </div>
       <p class="basis-note">Unit price uses the pack size. Basis: ${escapeHtml(basisSummary(settings))}. The item name opens its price history. A row is marked when the price paid is under that item’s target.</p>
       ${showing}
       <div class="table-wrap">
@@ -610,6 +669,9 @@ async function renderHistory(route) {
 
   app.innerHTML = `
     <h1 class="page-title">${escapeHtml(title)}</h1>
+    <div class="history-actions">
+      <button class="ghost" type="button" id="renameItem" data-item-name="${escapeAttr(title)}">Rename item</button>
+    </div>
     <p class="basis-note">${checks.length} check${checks.length === 1 ? "" : "s"}, newest first in each month. The line is the price paid in ${escapeHtml(latestCurrency)}.${
       target > 0 ? ` The dashed line is the target, ${escapeHtml(formatMoney(target, latestCurrency))}.` : ""
     }${skipped ? ` ${skipped} check${skipped === 1 ? "" : "s"} in another currency ${skipped === 1 ? "is" : "are"} in the table only.` : ""}</p>
@@ -697,12 +759,29 @@ async function renderForm(route) {
           <button class="ghost" type="button" id="removePhoto" ${previewUrl ? "" : "hidden"}>Remove image</button>
         </div>
       </div>
-      <label>Item
-        <input name="item" list="itemNames" required value="${escapeAttr(value.item || "")}" placeholder="Coffee beans" autocomplete="off" />
-      </label>
-      <datalist id="itemNames">
-        ${itemNames.map((name) => `<option value="${escapeAttr(name)}"></option>`).join("")}
-      </datalist>
+      ${
+        existing
+          ? `<label>Item
+              <input name="item" required readonly value="${escapeAttr(value.item || "")}" />
+            </label>
+            <div class="item-actions">
+              <button class="ghost" type="button" id="renameItem" data-item-name="${escapeAttr(value.item || "")}">Rename item</button>
+            </div>`
+          : `<label>Item
+              <select id="itemPick" data-item-pick>
+                <option value="${CUSTOM_VALUE}" ${!value.item || !itemNames.includes(value.item) ? "selected" : ""}>New item…</option>
+                ${itemNames
+                  .map(
+                    (name) =>
+                      `<option value="${escapeAttr(name)}" ${value.item === name ? "selected" : ""}>${escapeHtml(name)}</option>`
+                  )
+                  .join("")}
+              </select>
+            </label>
+            <label id="itemNameField" ${value.item && itemNames.includes(value.item) ? "hidden" : ""}>Item name
+              <input name="item" value="${escapeAttr(value.item || "")}" placeholder="Coffee beans" autocomplete="off" />
+            </label>`
+      }
       <div class="row">
         <label>Price
           <input name="price" type="number" inputmode="decimal" min="0" step="any" required value="${value.price ?? ""}" />
@@ -712,24 +791,19 @@ async function renderForm(route) {
         </label>
       </div>
       <div class="row">
-        <label>Store
-          <input name="store" list="storeNames" value="${escapeAttr(value.store || "")}" placeholder="Market" autocomplete="off" />
-        </label>
-        <label>Category
-          <select name="category">
-            <option value="">No category</option>
-            ${categories
-              .map(
-                (name) =>
-                  `<option value="${escapeAttr(name)}" ${value.category === name ? "selected" : ""}>${escapeHtml(name)}</option>`
-              )
-              .join("")}
-          </select>
-        </label>
+        <div>
+          <label class="field">Store
+            <select name="storePick" data-choice="store">${choiceOptions(stores, value.store || "", "No store", "New store…")}</select>
+          </label>
+          <input class="choice-custom" name="storeCustom" placeholder="New store" autocomplete="off" value="${escapeAttr(choiceCustomValue(stores, value.store || ""))}" ${choiceHidden(stores, value.store || "")} />
+        </div>
+        <div>
+          <label class="field">Category
+            <select name="categoryPick" data-choice="category">${choiceOptions(categories, value.category || "", "No category", "New category…")}</select>
+          </label>
+          <input class="choice-custom" name="categoryCustom" placeholder="New category" autocomplete="off" value="${escapeAttr(choiceCustomValue(categories, value.category || ""))}" ${choiceHidden(categories, value.category || "")} />
+        </div>
       </div>
-      <datalist id="storeNames">
-        ${stores.map((name) => `<option value="${escapeAttr(name)}"></option>`).join("")}
-      </datalist>
       <label>Target price
         <input name="targetPrice" type="number" inputmode="decimal" min="0" step="any" value="${value.targetPrice ?? ""}" placeholder="Optional" />
       </label>
@@ -752,6 +826,7 @@ async function renderForm(route) {
       <div class="form-actions">
         <button class="primary" type="submit">Save</button>
         ${existing ? `<a class="ghost" href="#/history/${encodeURIComponent(existing.item || "")}">Price history</a>` : ""}
+        ${existing ? `<button class="ghost" type="button" id="cloneItem">Clone</button>` : ""}
         ${existing ? `<button class="ghost" type="button" id="logAgain">Log again</button>` : ""}
         ${existing ? `<button class="danger" type="button" id="deleteCheck">Delete</button>` : ""}
       </div>
@@ -760,12 +835,21 @@ async function renderForm(route) {
   window.scrollTo(0, 0);
 }
 
-async function rememberStore(name) {
+async function rememberName(listKey, name) {
   const trimmed = String(name || "").trim();
   if (!trimmed) return;
-  if ((settings.stores || []).some((store) => store.toLowerCase() === trimmed.toLowerCase())) return;
-  settings.stores = [...(settings.stores || []), trimmed];
+  const list = settings[listKey] || [];
+  if (list.some((item) => item.toLowerCase() === trimmed.toLowerCase())) return;
+  settings[listKey] = [...list, trimmed];
   settings = await saveSettings(settings);
+}
+
+async function rememberStore(name) {
+  return rememberName("stores", name);
+}
+
+async function rememberCategory(name) {
+  return rememberName("categories", name);
 }
 
 async function shareTarget(item, targetPrice) {
@@ -784,12 +868,15 @@ function readPriceForm(form) {
   const quantity = quantityRaw === "" ? null : Number(quantityRaw);
   const targetRaw = String(data.get("targetPrice") ?? "").trim();
   const targetNumber = targetRaw === "" ? null : Number(targetRaw);
+  const itemPick = form.querySelector("#itemPick")?.value;
+  const itemName =
+    itemPick && itemPick !== CUSTOM_VALUE ? itemPick : String(data.get("item") || "").trim();
   return {
-    item: String(data.get("item") || "").trim(),
+    item: itemName,
     price: Number(data.get("price")),
     currency: String(data.get("currency") || settings.currency),
-    store: String(data.get("store") || "").trim(),
-    category: String(data.get("category") || "").trim(),
+    store: resolveChoice(form, "store"),
+    category: resolveChoice(form, "category"),
     targetPrice: Number.isFinite(targetNumber) && targetNumber > 0 ? targetNumber : null,
     targetRaw,
     checkedAt: String(data.get("checkedAt") || todayIso()),
@@ -886,7 +973,7 @@ async function renderSettings() {
         "settings:stores",
         "Stores",
         `<p class="hint">Stores you add here show up while logging a price. Renaming a store updates prices that use it.</p>
-        <input class="search" id="storeSearch" type="search" placeholder="Search stores" value="${escapeAttr(storeQuery)}" />
+        ${clearable(`<input class="search" id="storeSearch" type="search" placeholder="Search stores" value="${escapeAttr(storeQuery)}" autocomplete="off" />`)}
         <ul class="edit-list" id="storeList">
           ${
             storeItems.length
@@ -911,7 +998,7 @@ async function renderSettings() {
         "settings:categories",
         "Categories",
         `<p class="hint">These fill the category menu on the price list and on each price. Renaming a category updates prices that use it.</p>
-        <input class="search" id="categorySearch" type="search" placeholder="Search categories" value="${escapeAttr(categoryQuery)}" />
+        ${clearable(`<input class="search" id="categorySearch" type="search" placeholder="Search categories" value="${escapeAttr(categoryQuery)}" autocomplete="off" />`)}
         <ul class="edit-list" id="categoryList">
           ${
             categoryItems.length
@@ -1080,7 +1167,49 @@ async function route() {
   }
 }
 
+async function handleRename(currentName) {
+  const from = String(currentName || "").trim();
+  if (!from) return;
+  const next = prompt(`Rename “${from}” on every saved check:`, from);
+  if (next == null) return;
+  const name = next.trim();
+  if (!name) return;
+  if (sameName(name, from)) return;
+  const existing = (await listChecks()).some((row) => sameName(row.item, name));
+  if (existing && !confirm(`“${name}” already exists. Merge these checks into that item?`)) return;
+  const count = await renameItem(from, name);
+  if (!count) {
+    alert("No checks used that name.");
+    return;
+  }
+  const current = parseHash();
+  if (current.name === "history") {
+    go(`#/history/${encodeURIComponent(name)}`);
+    return;
+  }
+  const input = app.querySelector("[name=item]");
+  if (input) input.value = name;
+  const button = app.querySelector("#renameItem");
+  if (button) button.dataset.itemName = name;
+  if (session?.record) session.record.item = name;
+  const historyLink = app.querySelector('a.ghost[href^="#/history/"]');
+  if (historyLink) historyLink.href = `#/history/${encodeURIComponent(name)}`;
+}
+
 document.querySelector("#shell").addEventListener("click", async (event) => {
+  const clearBtn = event.target.closest("[data-clear]");
+  if (clearBtn) {
+    event.preventDefault();
+    const field = clearBtn.parentElement?.querySelector("input, textarea");
+    if (field) {
+      field.value = "";
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      field.dispatchEvent(new Event("change", { bubbles: true }));
+      field.focus();
+    }
+    return;
+  }
+
   const theme = event.target.closest("[data-theme-pick]")?.dataset.themePick;
   if (theme) {
     applyTheme(theme);
@@ -1182,6 +1311,25 @@ document.querySelector("#shell").addEventListener("click", async (event) => {
     session.previewUrl = null;
     session.previewOwned = false;
     setPreview(null);
+    return;
+  }
+
+  if (event.target.id === "renameItem") {
+    await handleRename(event.target.dataset.itemName || app.querySelector("[name=item]")?.value);
+    return;
+  }
+
+  if (event.target.id === "cloneItem") {
+    const form = app.querySelector("#priceForm");
+    if (!form || !session) return;
+    const data = readPriceForm(form);
+    let blob = session.photoBlob;
+    if (!blob && !session.removePhoto && session.id) blob = await getPhoto(session.id);
+    if (session.removePhoto) blob = null;
+    draft = { ...data, photoBlob: blob };
+    if (session.previewOwned && session.previewUrl) URL.revokeObjectURL(session.previewUrl);
+    session = null;
+    go("#/new");
     return;
   }
 
@@ -1298,6 +1446,7 @@ document.querySelector("#shell").addEventListener("submit", async (event) => {
     else if (session.removePhoto) await deletePhoto(id);
     photoUrls.delete(id);
     await rememberStore(data.store);
+    await rememberCategory(data.category);
     await shareTarget(data.item, data.targetPrice);
     session = null;
     go("#/");
@@ -1309,6 +1458,27 @@ document.querySelector("#shell").addEventListener("submit", async (event) => {
 });
 
 document.querySelector("#shell").addEventListener("change", async (event) => {
+  if (event.target.dataset.choice) {
+    toggleChoiceCustom(event.target);
+    return;
+  }
+
+  if (event.target.id === "itemPick" || event.target.dataset.itemPick !== undefined) {
+    const select = event.target;
+    const field = app.querySelector("#itemNameField");
+    const input = app.querySelector("[name=item]");
+    if (!input) return;
+    if (select.value === CUSTOM_VALUE) {
+      if (field) field.hidden = false;
+      input.value = "";
+      input.focus();
+      return;
+    }
+    input.value = select.value;
+    if (field) field.hidden = true;
+    return;
+  }
+
   if (event.target.id === "photoInput" && session) {
     const file = event.target.files?.[0];
     event.target.value = "";

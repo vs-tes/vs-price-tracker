@@ -74,6 +74,14 @@ img { max-width: 100%; display: block; }
   border-bottom: 1px solid var(--line);
 }
 
+.home-tools {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
 .app-toolbar-inner {
   display: flex;
   align-items: center;
@@ -179,10 +187,18 @@ a.ghost { text-decoration: none; }
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  margin: 0 0 12px;
 }
 
-.filter-field select { min-height: 44px; padding: 8px 12px; }
+.filter-field {
+  display: grid;
+  gap: 6px;
+}
+
+.filter-field select {
+  min-height: 44px;
+  padding: 10px 12px;
+  font-size: 16px;
+}
 
 .basis-note, .hint, .booting {
   color: var(--muted);
@@ -206,11 +222,49 @@ a.ghost { text-decoration: none; }
   border-radius: 14px;
   padding: 12px 14px;
   color: var(--ink);
+  font-size: 16px;
 }
 
-.search { margin-bottom: 12px; }
+.search { margin-bottom: 0; }
 
-select { appearance: auto; min-height: 48px; }
+input[type="search"]::-webkit-search-cancel-button { appearance: none; }
+
+select {
+  appearance: auto;
+  min-height: 48px;
+}
+
+.clearable {
+  position: relative;
+  display: block;
+}
+
+.clearable input,
+.clearable textarea { padding-right: 38px; }
+
+.clear-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--chip);
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.choice-custom { margin-top: 8px; }
+.field { margin-bottom: 0; }
+
+input[readonly] {
+  background: var(--chip);
+  color: var(--ink);
+}
 
 textarea { min-height: 96px; resize: vertical; }
 
@@ -258,6 +312,7 @@ label, .field {
 
 .table-wrap {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -267,8 +322,7 @@ label, .field {
 .prices {
   width: max-content;
   min-width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
+  border-collapse: collapse;
 }
 
 .prices th, .prices td {
@@ -277,7 +331,6 @@ label, .field {
   border-bottom: 1px solid var(--line);
   vertical-align: top;
   background: var(--card);
-  background-clip: padding-box;
   white-space: nowrap;
 }
 
@@ -317,29 +370,6 @@ label, .field {
 .prices tbody tr { cursor: pointer; }
 .prices tbody tr:hover td { background: var(--row-hover); }
 .prices tbody tr:last-child td { border-bottom: 0; }
-
-.prices td.sticky, .prices th.sticky {
-  position: sticky;
-  left: 0;
-  z-index: 2;
-  background: var(--card);
-  box-shadow: 1px 0 0 var(--line);
-}
-
-.prices tbody tr:hover td.sticky { background: var(--row-hover); }
-
-.prices tbody tr.is-under-target td.sticky {
-  background: color-mix(in srgb, var(--down) 14%, var(--card));
-}
-
-.prices tbody tr.is-under-target:hover td.sticky {
-  background: color-mix(in srgb, var(--down) 24%, var(--card));
-}
-
-.prices th.sticky {
-  z-index: 3;
-  background: var(--head);
-}
 
 .item-cell {
   display: flex;
@@ -442,8 +472,15 @@ tr.is-under-target td {
 
 .month-title { font-size: 16px; margin: 18px 0 8px; }
 
-.history-table th, .history-table td { position: static; box-shadow: none; }
 .history-table tbody tr { cursor: default; }
+
+.item-actions, .history-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 0 0 8px;
+}
 
 .visually-hidden {
   position: absolute;

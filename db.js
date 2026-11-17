@@ -110,6 +110,35 @@ export async function deletePhoto(id) {
   await txDone(tx);
 }
 
+export async function copyPhoto(fromId, toId) {
+  if (!fromId || !toId || fromId === toId) return;
+  const db = await openDb();
+  const tx = db.transaction("photos", "readwrite");
+  const store = tx.objectStore("photos");
+  const row = await requestToPromise(store.get(fromId));
+  if (row?.blob) store.put({ id: toId, blob: row.blob });
+  await txDone(tx);
+}
+
+export async function renameItem(fromName, toName) {
+  const from = String(fromName || "").trim();
+  const to = String(toName || "").trim();
+  if (!from || !to) return 0;
+  const checks = await listChecks();
+  const fromKey = from.toLowerCase().replace(/\s+/g, " ");
+  let count = 0;
+  for (const row of checks) {
+    const current = String(row.item || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ");
+    if (current !== fromKey) continue;
+    await saveCheck({ ...row, item: to });
+    count += 1;
+  }
+  return count;
+}
+
 function uniqueNames(values) {
   const seen = new Set();
   const names = [];
