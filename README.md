@@ -10,7 +10,7 @@ Prices, photos, and stores stay **on this device** (IndexedDB). They are not sto
 - Unit price is calculated from the pack size (350 g, 2 m, 1 L, …)
 - Settings choose the comparison basis: per 100 g or per 1 kg, per 100 ml or per 1 L, per 1 m or per 10 cm, and per piece
 - Same item name is compared across stores. The lowest unit price is marked, and each later check shows the change versus the previous one
-- Store and category menus stay under the top bar, like Kakei, so they stay on screen while you scroll
+- Store and category menus stay in a bar at the bottom of the screen, like Kakei’s tabs, so they stay on screen while you scroll
 - Rename an item from Edit or from its history page; every saved check with that name is updated
 - Clone a price from Edit to start a copy you can save
 - Instant search across item, store, category, and notes, with an × to clear the field
@@ -51,8 +51,8 @@ On an iPhone on the same Wi-Fi, open `http://YOUR-MAC-IP:8791` in Safari, then S
 
 1. **Add price** — item, what you paid, store, date, and the pack size (for example 350 g).
 2. Use the **same item name** when you check that product again. The unit-price column is how a 350 g pack and a 1 kg pack are compared.
-3. Store and Category at the top of the list filter the table. Tap a column heading to sort. Search filters as you type; tap × to clear it.
-4. **Edit** can rename the item on every check, clone it, or log another price.
+3. Store and Category at the bottom of the list filter the table. Tap a column heading to sort. Search filters as you type; tap × to clear it.
+4. **Edit → Check again** starts a new price for that item with today’s date. **Clone** copies the row as-is. **Rename item** updates every check with that name.
 5. **Settings** — theme, currency, unit-price basis, stores, categories, and backup.
 6. Open an item name to see that item’s checks month by month. Rename lives there too.
 

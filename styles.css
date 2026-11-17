@@ -63,6 +63,10 @@ img { max-width: 100%; display: block; }
   padding: 0 16px calc(28px + var(--safe-bottom));
 }
 
+#shell.has-filterbar {
+  padding-bottom: calc(118px + var(--safe-bottom));
+}
+
 .app-toolbar {
   position: sticky;
   top: 0;
@@ -75,11 +79,23 @@ img { max-width: 100%; display: block; }
 }
 
 .home-tools {
-  display: grid;
-  gap: 10px;
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid var(--line);
+}
+
+.filterbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 10px 16px calc(10px + var(--safe-bottom));
+  background: var(--card);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -8px 24px rgba(90, 52, 24, 0.08);
 }
 
 .app-toolbar-inner {
@@ -444,8 +460,6 @@ label, .field {
   background: color-mix(in srgb, var(--accent) 18%, var(--card));
   color: var(--accent);
 }
-
-tr.is-lowest td.unit { box-shadow: inset 3px 0 0 var(--down); }
 
 tr.is-under-target td {
   background: color-mix(in srgb, var(--down) 14%, var(--card));

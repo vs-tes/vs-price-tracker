@@ -18,6 +18,7 @@ import { BASES, UNITS, basisSummary, unitById, unitPrice } from "./units.js";
 
 const app = document.querySelector("#app");
 const toolbar = document.querySelector("#toolbar");
+const filterbar = document.querySelector("#filterbar");
 const COLLAPSE_KEY = "vspt-collapsed";
 const SORT_KEY = "vspt-sort";
 const SORT_KEYS = ["item", "price", "store", "checkedAt", "unitPrice"];
@@ -250,6 +251,7 @@ function renderToolbar(route) {
     </nav>
     ${route.name === "home" && homeMeta.hasPrices ? homeToolsHtml() : ""}
   `;
+  renderFilterbar(route);
 }
 
 function homeToolsHtml() {
@@ -257,6 +259,19 @@ function homeToolsHtml() {
     ${clearable(
       `<input class="search" id="search" type="search" placeholder="Search items, stores, categories, notes" value="${escapeAttr(query)}" autocomplete="off" />`
     )}
+  </div>`;
+}
+
+function renderFilterbar(route) {
+  const show = route.name === "home" && homeMeta.hasPrices;
+  document.querySelector("#shell").classList.toggle("has-filterbar", show);
+  if (!show) {
+    filterbar.hidden = true;
+    filterbar.innerHTML = "";
+    return;
+  }
+  filterbar.hidden = false;
+  filterbar.innerHTML = `
     <div class="filter-row">
       <div class="filter-field">
         <label for="storeFilter">Store</label>
@@ -267,7 +282,7 @@ function homeToolsHtml() {
         <select id="categoryFilter">${selectOptions(homeMeta.categoryNames, categoryFilter, "All categories")}</select>
       </div>
     </div>
-  </div>`;
+  `;
 }
 
 async function photoUrl(id) {
@@ -827,9 +842,14 @@ async function renderForm(route) {
         <button class="primary" type="submit">Save</button>
         ${existing ? `<a class="ghost" href="#/history/${encodeURIComponent(existing.item || "")}">Price history</a>` : ""}
         ${existing ? `<button class="ghost" type="button" id="cloneItem">Clone</button>` : ""}
-        ${existing ? `<button class="ghost" type="button" id="logAgain">Log again</button>` : ""}
+        ${existing ? `<button class="ghost" type="button" id="logAgain">Check again</button>` : ""}
         ${existing ? `<button class="danger" type="button" id="deleteCheck">Delete</button>` : ""}
       </div>
+      ${
+        existing
+          ? `<p class="hint">Check again starts a new price for this item, with today’s date and a blank amount — use it when you see the same product at another store. Clone copies this row as-is, including the amount.</p>`
+          : ""
+      }
     </form>
   `;
   window.scrollTo(0, 0);
