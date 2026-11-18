@@ -520,6 +520,18 @@ html[data-freeze="1"] .prices tbody tr.is-under-target td.col-item {
   text-overflow: ellipsis;
 }
 
+.photo-open {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+  border-radius: 10px;
+  line-height: 0;
+}
+
+.item-cell .photo-open { flex: none; }
+
 .thumb, .thumb-fallback {
   width: 56px;
   height: 56px;
@@ -632,6 +644,8 @@ tr.is-under-target td {
 
 .photo-picker { display: grid; gap: 10px; }
 
+.photo-picker .photo-open { max-width: 420px; border-radius: 18px; }
+
 .photo-picker img, .photo-fallback {
   width: 100%;
   max-width: 420px;
@@ -640,6 +654,45 @@ tr.is-under-target td {
   border-radius: 18px;
   background: var(--chip);
 }
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: calc(52px + var(--safe-top)) 16px calc(16px + var(--safe-bottom));
+  background: rgba(20, 14, 10, 0.92);
+  cursor: zoom-out;
+}
+
+.lightbox[hidden] { display: none !important; }
+
+.lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: calc(8px + var(--safe-top));
+  right: 12px;
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--chip);
+  color: var(--ink);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+body.has-lightbox { overflow: hidden; }
 
 .photo-fallback {
   display: grid;

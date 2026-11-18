@@ -344,6 +344,30 @@ async function photoUrl(id) {
   return url;
 }
 
+function photoOpenHtml(src, imgClass) {
+  if (!src) return "";
+  return `<button type="button" class="photo-open" data-photo-src="${escapeAttr(src)}" aria-label="View photo">
+    <img class="${imgClass}" src="${escapeAttr(src)}" alt="" />
+  </button>`;
+}
+
+function openLightbox(src) {
+  const box = document.querySelector("#lightbox");
+  const img = document.querySelector("#lightboxImg");
+  if (!box || !img || !src) return;
+  img.src = src;
+  box.hidden = false;
+  document.body.classList.add("has-lightbox");
+}
+
+function closeLightbox() {
+  const box = document.querySelector("#lightbox");
+  const img = document.querySelector("#lightboxImg");
+  if (img) img.removeAttribute("src");
+  if (box) box.hidden = true;
+  document.body.classList.remove("has-lightbox");
+}
+
 function clearPhotoCache() {
   for (const url of photoUrls.values()) {
     if (url) URL.revokeObjectURL(url);
@@ -577,7 +601,7 @@ async function renderHome({ keepScroll = false, partial = false } = {}) {
           return `<tr data-edit="${escapeAttr(row.id)}" class="${rowClass}" ${titleBits.length ? `title="${escapeAttr(titleBits.join(" · "))}"` : ""}>
             <td class="col-item">
               <div class="item-cell">
-                ${thumb ? `<img class="thumb" src="${thumb}" alt="" />` : ""}
+                ${thumb ? photoOpenHtml(thumb, "thumb") : ""}
                 <div class="item-copy">
                   <a class="item-link" href="#/history/${encodeURIComponent(row.item)}">${escapeHtml(row.item)}</a>
                   ${underTarget ? `<span class="badge badge-target">Under target</span>` : ""}
@@ -837,11 +861,9 @@ async function renderForm(route) {
     <form id="priceForm" class="form">
       <p id="formError" class="form-error" hidden></p>
       <div class="photo-picker">
-        ${
-          previewUrl
-            ? `<img id="photoPreview" src="${previewUrl}" alt="Price photo" />`
-            : `<div class="photo-fallback" id="photoPreview">No photo</div>`
-        }
+        <div id="photoPreview">
+          ${previewUrl ? photoOpenHtml(previewUrl, "photo-frame") : `<div class="photo-fallback">No photo</div>`}
+        </div>
         <div class="footer-links">
           <label class="ghost file-btn">Add image<input id="photoInput" type="file" accept="image/*" /></label>
           <button class="ghost" type="button" id="removePhoto" ${previewUrl ? "" : "hidden"}>Remove image</button>
@@ -982,19 +1004,11 @@ function setPreview(url) {
   const remove = app.querySelector("#removePhoto");
   if (!slot) return;
   if (!url) {
-    const fallback = document.createElement("div");
-    fallback.className = "photo-fallback";
-    fallback.id = "photoPreview";
-    fallback.textContent = "No photo";
-    slot.replaceWith(fallback);
+    slot.innerHTML = `<div class="photo-fallback">No photo</div>`;
     if (remove) remove.hidden = true;
     return;
   }
-  const img = document.createElement("img");
-  img.id = "photoPreview";
-  img.alt = "Price photo";
-  img.src = url;
-  slot.replaceWith(img);
+  slot.innerHTML = photoOpenHtml(url, "photo-frame");
   if (remove) remove.hidden = false;
 }
 
@@ -1242,6 +1256,7 @@ async function exportCsv() {
 }
 
 async function route() {
+  closeLightbox();
   const token = ++routeToken;
   const current = parseHash();
   renderToolbar(current);
@@ -1292,6 +1307,13 @@ async function handleRename(currentName) {
 }
 
 document.querySelector("#shell").addEventListener("click", async (event) => {
+  const photo = event.target.closest("[data-photo-src]");
+  if (photo?.dataset.photoSrc) {
+    event.preventDefault();
+    openLightbox(photo.dataset.photoSrc);
+    return;
+  }
+
   const clearBtn = event.target.closest("[data-clear]");
   if (clearBtn) {
     event.preventDefault();
@@ -1783,6 +1805,16 @@ document.querySelector("#shell").addEventListener(
   },
   { passive: true }
 );
+
+document.querySelector("#lightbox")?.addEventListener("click", (event) => {
+  if (event.target.id === "lightbox" || event.target.closest("[data-lightbox-close]") || event.target.id === "lightboxImg") {
+    closeLightbox();
+  }
+});
+
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeLightbox();
+});
 
 window.addEventListener("hashchange", route);
 

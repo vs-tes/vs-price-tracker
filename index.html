@@ -18,7 +18,7 @@
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180.png" />
-    <link rel="stylesheet" href="./styles.css?v=13" />
+    <link rel="stylesheet" href="./styles.css?v=14" />
   </head>
   <body>
     <div id="shell">
@@ -26,6 +26,10 @@
       <main id="app"><p class="booting">Opening…</p></main>
       <nav id="filterbar" class="filterbar" hidden></nav>
     </div>
-    <script type="module" src="./app.js?v=13"></script>
+    <div id="lightbox" class="lightbox" hidden>
+      <button class="lightbox-close" type="button" data-lightbox-close aria-label="Close">×</button>
+      <img id="lightboxImg" alt="Price photo" />
+    </div>
+    <script type="module" src="./app.js?v=14"></script>
   </body>
 </html>
