@@ -14,9 +14,9 @@ Prices, photos, and stores stay **on this device** (IndexedDB). They are not sto
 - The table fills the screen and uses percentage column widths, so zooming in or out keeps the layout
 - Freeze the item column (on by default) so the name stays put when you scroll sideways
 - Drag a column heading’s edge to resize; Settings can reset the widths
-- Rename an item from Edit or from its history page; every saved check with that name is updated
+- Edit a check’s name on its own (for varieties). History can still rename every check with that name
 - Clone a price from Edit to start a copy you can save
-- Instant search across item, store, category, and notes, with an × to clear the field
+- Instant search across item, store, category, and notes. Text fields have an × to clear them
 - About (?) next to Settings explains unit price, history, and the bottom filters
 - Price history for one item, grouped by month, with the price paid drawn over time
 - Optional target price. The row is marked when the price paid goes under it
@@ -56,7 +56,7 @@ On an iPhone on the same Wi-Fi, open `http://YOUR-MAC-IP:8791` in Safari, then S
 1. **Add price** — item, what you paid, store, date, and the pack size (for example 350 g).
 2. Use the **same item name** when you check that product again. The unit-price column is how a 350 g pack and a 1 kg pack are compared.
 3. Store and Category at the bottom of the list filter the table. Freeze item keeps the name in view. Drag a heading edge to resize a column. Search filters as you type; tap × to clear it. The ? icon opens About.
-4. **Edit → Check again** starts a new price for that item with today’s date. **Clone** copies the row as-is. **Rename item** updates every check with that name.
+4. **Edit** can change this check’s name only — pick **New item** for a variety. **Check again** starts a new price with today’s date. **Clone** copies the row as-is. History → **Rename all checks** changes every check with that name.
 5. **Settings** — theme, table freeze and column widths, currency, unit-price basis, stores, categories, and backup.
 6. Open an item name to see that item’s checks month by month. Rename lives there too.
 

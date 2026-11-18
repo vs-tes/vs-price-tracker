@@ -271,10 +271,18 @@ select {
 .clearable {
   position: relative;
   display: block;
+  min-width: 0;
 }
 
 .clearable input,
 .clearable textarea { padding-right: 38px; }
+
+.clearable:has(textarea) .clear-btn {
+  top: 10px;
+  transform: none;
+}
+
+.clearable:has(.choice-custom) { margin-top: 8px; }
 
 .clear-btn {
   position: absolute;
@@ -292,7 +300,7 @@ select {
   cursor: pointer;
 }
 
-.choice-custom { margin-top: 8px; }
+.choice-custom { margin-top: 0; }
 .field { margin-bottom: 0; }
 
 input[readonly] {

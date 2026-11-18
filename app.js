@@ -195,8 +195,29 @@ function logoSvg() {
   return `<img class="logo" src="./icons/icon.svg" alt="" />`;
 }
 
-function clearable(html) {
-  return `<span class="clearable">${html}<button type="button" class="clear-btn" data-clear aria-label="Clear">×</button></span>`;
+function clearable(html, attrs = "") {
+  return `<span class="clearable"${attrs ? ` ${attrs}` : ""}>${html}<button type="button" class="clear-btn" data-clear aria-label="Clear">×</button></span>`;
+}
+
+function itemFieldsHtml(value, itemNames) {
+  const known = Boolean(value.item && itemNames.includes(value.item));
+  return `
+    <label>Item
+      <select id="itemPick" data-item-pick>
+        <option value="${CUSTOM_VALUE}" ${known ? "" : "selected"}>New item…</option>
+        ${itemNames
+          .map(
+            (name) =>
+              `<option value="${escapeAttr(name)}" ${value.item === name ? "selected" : ""}>${escapeHtml(name)}</option>`
+          )
+          .join("")}
+      </select>
+    </label>
+    <label id="itemNameField" ${known ? "hidden" : ""}>Item name
+      ${clearable(`<input name="item" value="${escapeAttr(value.item || "")}" placeholder="Coffee beans" autocomplete="off" />`)}
+    </label>
+    <p class="hint">This name is only for this check. Pick an existing name to group it with that product, or New item for another variety.</p>
+  `;
 }
 
 function choiceOptions(names, selected, noneLabel, newLabel) {
@@ -234,7 +255,9 @@ function toggleChoiceCustom(select) {
   const custom = select.form?.querySelector(`[name="${key}Custom"]`);
   if (!custom) return;
   const isCustom = select.value === CUSTOM_VALUE;
-  custom.hidden = !isCustom;
+  const wrap = custom.closest(".clearable");
+  if (wrap) wrap.hidden = !isCustom;
+  else custom.hidden = !isCustom;
   if (isCustom) custom.focus();
 }
 
@@ -735,7 +758,7 @@ async function renderHistory(route) {
   app.innerHTML = `
     <h1 class="page-title">${escapeHtml(title)}</h1>
     <div class="history-actions">
-      <button class="ghost" type="button" id="renameItem" data-item-name="${escapeAttr(title)}">Rename item</button>
+      <button class="ghost" type="button" id="renameItem" data-item-name="${escapeAttr(title)}">Rename all checks</button>
     </div>
     <p class="basis-note">${checks.length} check${checks.length === 1 ? "" : "s"}, newest first in each month. The line is the price paid in ${escapeHtml(latestCurrency)}.${
       target > 0 ? ` The dashed line is the target, ${escapeHtml(formatMoney(target, latestCurrency))}.` : ""
@@ -824,32 +847,10 @@ async function renderForm(route) {
           <button class="ghost" type="button" id="removePhoto" ${previewUrl ? "" : "hidden"}>Remove image</button>
         </div>
       </div>
-      ${
-        existing
-          ? `<label>Item
-              <input name="item" required readonly value="${escapeAttr(value.item || "")}" />
-            </label>
-            <div class="item-actions">
-              <button class="ghost" type="button" id="renameItem" data-item-name="${escapeAttr(value.item || "")}">Rename item</button>
-            </div>`
-          : `<label>Item
-              <select id="itemPick" data-item-pick>
-                <option value="${CUSTOM_VALUE}" ${!value.item || !itemNames.includes(value.item) ? "selected" : ""}>New item…</option>
-                ${itemNames
-                  .map(
-                    (name) =>
-                      `<option value="${escapeAttr(name)}" ${value.item === name ? "selected" : ""}>${escapeHtml(name)}</option>`
-                  )
-                  .join("")}
-              </select>
-            </label>
-            <label id="itemNameField" ${value.item && itemNames.includes(value.item) ? "hidden" : ""}>Item name
-              <input name="item" value="${escapeAttr(value.item || "")}" placeholder="Coffee beans" autocomplete="off" />
-            </label>`
-      }
+      ${itemFieldsHtml(value, itemNames)}
       <div class="row">
         <label>Price
-          <input name="price" type="number" inputmode="decimal" min="0" step="any" required value="${value.price ?? ""}" />
+          ${clearable(`<input name="price" type="number" inputmode="decimal" min="0" step="any" required value="${value.price ?? ""}" />`)}
         </label>
         <label>Currency
           <select name="currency">${currencyOptions(currency)}</select>
@@ -860,25 +861,31 @@ async function renderForm(route) {
           <label class="field">Store
             <select name="storePick" data-choice="store">${choiceOptions(stores, value.store || "", "No store", "New store…")}</select>
           </label>
-          <input class="choice-custom" name="storeCustom" placeholder="New store" autocomplete="off" value="${escapeAttr(choiceCustomValue(stores, value.store || ""))}" ${choiceHidden(stores, value.store || "")} />
+          ${clearable(
+            `<input class="choice-custom" name="storeCustom" placeholder="New store" autocomplete="off" value="${escapeAttr(choiceCustomValue(stores, value.store || ""))}" />`,
+            choiceHidden(stores, value.store || "")
+          )}
         </div>
         <div>
           <label class="field">Category
             <select name="categoryPick" data-choice="category">${choiceOptions(categories, value.category || "", "No category", "New category…")}</select>
           </label>
-          <input class="choice-custom" name="categoryCustom" placeholder="New category" autocomplete="off" value="${escapeAttr(choiceCustomValue(categories, value.category || ""))}" ${choiceHidden(categories, value.category || "")} />
+          ${clearable(
+            `<input class="choice-custom" name="categoryCustom" placeholder="New category" autocomplete="off" value="${escapeAttr(choiceCustomValue(categories, value.category || ""))}" />`,
+            choiceHidden(categories, value.category || "")
+          )}
         </div>
       </div>
       <label>Target price
-        <input name="targetPrice" type="number" inputmode="decimal" min="0" step="any" value="${value.targetPrice ?? ""}" placeholder="Optional" />
+        ${clearable(`<input name="targetPrice" type="number" inputmode="decimal" min="0" step="any" value="${value.targetPrice ?? ""}" placeholder="Optional" />`)}
       </label>
       <p class="hint">Optional. Shared by every check with this item name. The list marks a row when the price you paid goes under it.</p>
       <label>Date checked
-        <input name="checkedAt" type="date" required value="${escapeAttr(value.checkedAt || todayIso())}" />
+        ${clearable(`<input name="checkedAt" type="date" required value="${escapeAttr(value.checkedAt || todayIso())}" />`)}
       </label>
       <div class="row">
         <label>Pack size
-          <input name="quantity" type="number" inputmode="decimal" min="0" step="any" value="${value.quantity ?? ""}" placeholder="350" />
+          ${clearable(`<input name="quantity" type="number" inputmode="decimal" min="0" step="any" value="${value.quantity ?? ""}" placeholder="350" />`)}
         </label>
         <label>Unit
           <select name="unit">${unitOptions(unit)}</select>
@@ -886,7 +893,7 @@ async function renderForm(route) {
       </div>
       <p class="hint">Pack size is how the unit price is calculated. 350 g at the per 100 g basis, 2 m at the per meter basis. Use the same item name each time you check that product.</p>
       <label>Notes
-        <textarea name="notes" placeholder="Optional">${escapeHtml(value.notes || "")}</textarea>
+        ${clearable(`<textarea name="notes" placeholder="Optional">${escapeHtml(value.notes || "")}</textarea>`)}
       </label>
       <div class="form-actions">
         <button class="primary" type="submit">Save</button>
@@ -1063,7 +1070,7 @@ async function renderSettings() {
               ? storeItems
                   .map(
                     ({ name, index }) => `<li>
-                      <input data-store-index="${index}" value="${escapeAttr(name)}" />
+                      ${clearable(`<input data-store-index="${index}" value="${escapeAttr(name)}" />`)}
                       <button type="button" class="danger compact" data-del-store="${index}">Delete</button>
                     </li>`
                   )
@@ -1073,7 +1080,7 @@ async function renderSettings() {
           <li class="hint" id="storeEmpty" hidden>No stores match.</li>
         </ul>
         <div class="add-row">
-          <input id="newStore" placeholder="New store" />
+          ${clearable(`<input id="newStore" placeholder="New store" />`)}
           <button type="button" class="primary" id="addStore">Add</button>
         </div>`
       )}
@@ -1088,7 +1095,7 @@ async function renderSettings() {
               ? categoryItems
                   .map(
                     ({ name, index }) => `<li>
-                      <input data-category-index="${index}" value="${escapeAttr(name)}" />
+                      ${clearable(`<input data-category-index="${index}" value="${escapeAttr(name)}" />`)}
                       <button type="button" class="danger compact" data-del-category="${index}">Delete</button>
                     </li>`
                   )
@@ -1098,7 +1105,7 @@ async function renderSettings() {
           <li class="hint" id="categoryEmpty" hidden>No categories match.</li>
         </ul>
         <div class="add-row">
-          <input id="newCategory" placeholder="New category" />
+          ${clearable(`<input id="newCategory" placeholder="New category" />`)}
           <button type="button" class="primary" id="addCategory">Add</button>
         </div>`
       )}
@@ -1258,7 +1265,7 @@ async function route() {
 async function handleRename(currentName) {
   const from = String(currentName || "").trim();
   if (!from) return;
-  const next = prompt(`Rename “${from}” on every saved check:`, from);
+  const next = prompt(`Rename every check named “${from}”? This changes the whole group. To rename one variety only, edit that price and pick New item.`, from);
   if (next == null) return;
   const name = next.trim();
   if (!name) return;
@@ -1575,7 +1582,7 @@ document.querySelector("#shell").addEventListener("change", async (event) => {
     if (!input) return;
     if (select.value === CUSTOM_VALUE) {
       if (field) field.hidden = false;
-      input.value = "";
+      if (!input.value && session?.record?.item) input.value = session.record.item;
       input.focus();
       return;
     }
