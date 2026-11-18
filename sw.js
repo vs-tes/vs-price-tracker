@@ -1,9 +1,9 @@
-const CACHE = "vs-price-tracker-v14";
+const CACHE = "vs-price-tracker-v15";
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=14",
-  "./app.js?v=14",
+  "./styles.css?v=15",
+  "./app.js?v=15",
   "./db.js",
   "./units.js",
   "./manifest.webmanifest",
@@ -33,8 +33,10 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
+  const isPage = event.request.mode === "navigate" || url.pathname.endsWith("/") || url.pathname.endsWith("/index.html");
+  const request = isPage ? new Request(event.request, { cache: "reload" }) : event.request;
   event.respondWith(
-    fetch(event.request)
+    fetch(request)
       .then((response) => {
         if (response && response.ok && response.type === "basic") {
           const copy = response.clone();

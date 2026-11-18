@@ -444,7 +444,7 @@ function compareRows(a, b) {
 function matchesQuery(row, q) {
   if (!q) return true;
   const size = sizeLabel(row).toLowerCase();
-  const haystack = [row.item, row.store, row.category, row.notes, size].join(" ").toLowerCase();
+  const haystack = [row.item, row.brand, row.store, row.category, row.notes, size].join(" ").toLowerCase();
   return haystack.includes(q);
 }
 
@@ -489,6 +489,10 @@ function knownStores(checks) {
 function knownCategories(checks) {
   const saved = Array.isArray(settings.categories) ? settings.categories : DEFAULT_CATEGORIES;
   return knownNames(saved, checks.map((row) => row.category));
+}
+
+function knownBrands(checks) {
+  return knownNames([], checks.map((row) => row.brand));
 }
 
 function isUnderTarget(row) {
@@ -853,6 +857,7 @@ async function renderForm(route) {
   );
   const stores = knownStores(checks).sort((a, b) => a.localeCompare(b));
   const categories = knownCategories(checks).sort((a, b) => a.localeCompare(b));
+  const brands = knownBrands(checks).sort((a, b) => a.localeCompare(b));
   const currency = value.currency || settings.currency;
   const unit = value.unit || "g";
 
@@ -870,6 +875,15 @@ async function renderForm(route) {
         </div>
       </div>
       ${itemFieldsHtml(value, itemNames)}
+      <div>
+        <label class="field">Brand / maker
+          <select name="brandPick" data-choice="brand">${choiceOptions(brands, value.brand || "", "No brand", "New brand…")}</select>
+        </label>
+        ${clearable(
+          `<input class="choice-custom" name="brandCustom" placeholder="New brand" autocomplete="off" value="${escapeAttr(choiceCustomValue(brands, value.brand || ""))}" />`,
+          choiceHidden(brands, value.brand || "")
+        )}
+      </div>
       <div class="row">
         <label>Price
           ${clearable(`<input name="price" type="number" inputmode="decimal" min="0" step="any" required value="${value.price ?? ""}" />`)}
@@ -976,6 +990,7 @@ function readPriceForm(form) {
     currency: String(data.get("currency") || settings.currency),
     store: resolveChoice(form, "store"),
     category: resolveChoice(form, "category"),
+    brand: resolveChoice(form, "brand"),
     targetPrice: Number.isFinite(targetNumber) && targetNumber > 0 ? targetNumber : null,
     targetRaw,
     checkedAt: String(data.get("checkedAt") || todayIso()),
@@ -1219,6 +1234,7 @@ async function exportCsv() {
   );
   const header = [
     "item",
+    "brand",
     "price",
     "currency",
     "store",
@@ -1236,6 +1252,7 @@ async function exportCsv() {
     lines.push(
       [
         row.item,
+        row.brand || "",
         row.price,
         row.currency || settings.currency,
         row.store || "",
@@ -1310,6 +1327,7 @@ document.querySelector("#shell").addEventListener("click", async (event) => {
   const photo = event.target.closest("[data-photo-src]");
   if (photo?.dataset.photoSrc) {
     event.preventDefault();
+    event.stopPropagation();
     openLightbox(photo.dataset.photoSrc);
     return;
   }
@@ -1568,6 +1586,7 @@ document.querySelector("#shell").addEventListener("submit", async (event) => {
       currency: CURRENCIES.includes(data.currency) ? data.currency : settings.currency,
       store: data.store,
       category: data.category,
+      brand: data.brand,
       targetPrice: data.targetPrice,
       checkedAt: data.checkedAt || todayIso(),
       quantity: data.quantity,
@@ -1770,6 +1789,7 @@ function cancelResize() {
 }
 
 document.querySelector("#shell").addEventListener("pointerdown", (event) => {
+  if (event.target.closest("[data-photo-src]")) event.stopPropagation();
   const handle = event.target.closest("[data-resize]");
   if (!handle) return;
   const key = handle.dataset.resize;
@@ -1819,7 +1839,7 @@ window.addEventListener("keydown", (event) => {
 window.addEventListener("hashchange", route);
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js");
+  navigator.serviceWorker.register("./sw.js?v=15", { updateViaCache: "none" }).then((reg) => reg.update());
 }
 
 applyTheme(localStorage.getItem("vspt-theme") || "light");

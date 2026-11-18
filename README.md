@@ -17,6 +17,7 @@ Prices, photos, and stores stay **on this device** (IndexedDB). They are not sto
 - Edit a check’s name on its own (for varieties). History can still rename every check with that name
 - Clone a price from Edit to start a copy you can save
 - Instant search across item, store, category, and notes. Text fields have an × to clear them
+- Brand / maker on Add and Edit only, not on the price list
 - About (?) next to Settings explains unit price, history, and the bottom filters
 - Price history for one item, grouped by month, with the price paid drawn over time
 - Optional target price. The row is marked when the price paid goes under it
@@ -34,6 +35,8 @@ Open this in Safari on iPhone, or in any browser on a computer:
 https://vs-tes.github.io/vs-price-tracker/
 
 On iPhone, use Safari (not Chrome), then Share → **Add to Home Screen**. Open **Prices** from the new icon.
+
+If the Home Screen copy looks old, open the site in Safari, pull to refresh, then open **Prices** again. A one-time reload updates the saved copy.
 
 ## GitHub Pages
 

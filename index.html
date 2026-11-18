@@ -6,6 +6,17 @@
     <meta name="theme-color" content="#9a4b1f" />
     <script>
       document.documentElement.dataset.theme = localStorage.getItem("vspt-theme") || "light";
+      const BUILD = "15";
+      if (localStorage.getItem("vspt-build") !== BUILD) {
+        localStorage.setItem("vspt-build", BUILD);
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.getRegistrations().then((regs) =>
+            Promise.all(regs.map((reg) => reg.unregister())).then(() =>
+              caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key)))).then(() => location.reload())
+            )
+          );
+        }
+      }
     </script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -18,7 +29,7 @@
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180.png" />
-    <link rel="stylesheet" href="./styles.css?v=14" />
+    <link rel="stylesheet" href="./styles.css?v=15" />
   </head>
   <body>
     <div id="shell">
@@ -30,6 +41,6 @@
       <button class="lightbox-close" type="button" data-lightbox-close aria-label="Close">×</button>
       <img id="lightboxImg" alt="Price photo" />
     </div>
-    <script type="module" src="./app.js?v=14"></script>
+    <script type="module" src="./app.js?v=15"></script>
   </body>
 </html>
