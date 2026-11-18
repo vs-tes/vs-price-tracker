@@ -243,7 +243,7 @@ a.ghost { text-decoration: none; }
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin: 0 0 8px;
+  margin: 12px 0 8px;
   color: var(--muted);
   font-size: 13px;
   font-weight: 650;
@@ -343,6 +343,24 @@ label, .field {
 }
 
 .empty p { color: var(--muted); }
+
+.about-copy {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 16px 18px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.about-copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
 
 .table-wrap {
   overflow-x: auto;
@@ -467,16 +485,17 @@ html[data-freeze="1"] .prices tbody tr.is-under-target td.col-item {
 
 .item-cell {
   display: flex;
-  gap: 10px;
+  flex-direction: column;
   align-items: flex-start;
+  gap: 6px;
   min-width: 0;
 }
 
 .item-copy { display: grid; gap: 2px; min-width: 0; }
 
 .item-link {
-  color: inherit;
-  font-weight: 700;
+  color: var(--accent);
+  font-weight: 500;
   text-decoration: none;
 }
 
@@ -494,8 +513,8 @@ html[data-freeze="1"] .prices tbody tr.is-under-target td.col-item {
 }
 
 .thumb, .thumb-fallback {
-  width: 44px;
-  height: 44px;
+  width: 56px;
+  height: 56px;
   border-radius: 10px;
   object-fit: cover;
   flex: none;
@@ -672,5 +691,5 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .toolbar-title { font-size: 16px; }
   .row { grid-template-columns: 1fr; }
   .prices th, .prices td { padding: 8px 8px; }
-  .thumb, .thumb-fallback { width: 36px; height: 36px; }
+  .thumb, .thumb-fallback { width: 48px; height: 48px; }
 }

@@ -175,6 +175,7 @@ function parseHash() {
   const parts = (location.hash || "#/").replace(/^#\/?/, "").split("/").filter(Boolean);
   if (!parts.length) return { name: "home" };
   if (parts[0] === "settings") return { name: "settings" };
+  if (parts[0] === "about") return { name: "about" };
   if (parts[0] === "new") return { name: "form" };
   if (parts[0] === "edit" && parts[1]) return { name: "form", id: decodeURIComponent(parts[1]) };
   if (parts[0] === "history" && parts[1]) return { name: "history", item: decodeURIComponent(parts[1]) };
@@ -240,6 +241,7 @@ function toggleChoiceCustom(select) {
 function renderToolbar(route) {
   const isForm = route.name === "form";
   const isSettings = route.name === "settings";
+  const isAbout = route.name === "about";
   toolbar.innerHTML = `
     <nav class="app-toolbar-inner" aria-label="App">
       ${
@@ -262,6 +264,11 @@ function renderToolbar(route) {
           : ""
       }
       <span class="toolbar-spacer"></span>
+      <button class="icon-btn" type="button" data-go="#/about" ${isAbout ? "disabled" : ""} aria-label="About" title="About">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm0 15.2a1.15 1.15 0 1 1 0-2.3 1.15 1.15 0 0 1 0 2.3Zm1.4-4.7-.4.2c-.5.3-.8.6-.8 1.2h-1.6v-.3c0-1 .5-1.7 1.2-2.2l.4-.2c.6-.4.9-.8.9-1.4 0-.8-.6-1.4-1.5-1.4s-1.5.5-1.7 1.3H8.3C8.6 7.9 10 6.7 12.1 6.7c2.1 0 3.5 1.3 3.5 3.2 0 1.2-.6 2-2.2 2.6Z"/>
+        </svg>
+      </button>
       <button class="icon-btn" type="button" data-go="#/settings" ${isSettings ? "disabled" : ""} aria-label="Settings" title="Settings">
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
           <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.1 7.1 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.56-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.77 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.89 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.14.24.43.34.69.22l2.39-.96c.5.38 1.04.7 1.63.94l.36 2.54c.05.24.26.42.5.42h3.84c.24 0 .45-.18.5-.42l.36-2.54c.59-.24 1.13-.56 1.63-.94l2.39.96c.26.12.55.02.69-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2Z"/>
@@ -547,11 +554,7 @@ async function renderHome({ keepScroll = false, partial = false } = {}) {
           return `<tr data-edit="${escapeAttr(row.id)}" class="${rowClass}" ${titleBits.length ? `title="${escapeAttr(titleBits.join(" · "))}"` : ""}>
             <td class="col-item">
               <div class="item-cell">
-                ${
-                  thumb
-                    ? `<img class="thumb" src="${thumb}" alt="" />`
-                    : `<span class="thumb-fallback" aria-hidden="true">¥</span>`
-                }
+                ${thumb ? `<img class="thumb" src="${thumb}" alt="" />` : ""}
                 <div class="item-copy">
                   <a class="item-link" href="#/history/${encodeURIComponent(row.item)}">${escapeHtml(row.item)}</a>
                   ${size ? `<span class="meta">${escapeHtml(size)}</span>` : `<span class="meta">Size not set</span>`}
@@ -603,8 +606,6 @@ async function renderHome({ keepScroll = false, partial = false } = {}) {
 
   app.innerHTML = checks.length
     ? `
-      <h1 class="page-title">Price list</h1>
-      <p class="basis-note">Unit price uses the pack size. Basis: ${escapeHtml(basisSummary(settings))}. The item name opens its price history. A row is marked when the price paid is under that item’s target.</p>
       ${showing}
       <div class="table-wrap">
         <table class="prices">
@@ -630,6 +631,18 @@ async function renderHome({ keepScroll = false, partial = false } = {}) {
     `;
   applyTableChrome();
   window.scrollTo(0, y);
+}
+
+function renderAbout() {
+  app.innerHTML = `
+    <h1 class="page-title">Price list</h1>
+    <p class="basis-note">Unit price uses the pack size. Basis: ${escapeHtml(basisSummary(settings))}. The item name opens its price history. A row is marked when the price paid is under that item’s target.</p>
+    <div class="about-copy">
+      <p>Store and Category at the bottom filter the table. Freeze item keeps the name in view when you scroll sideways. Search filters as you type.</p>
+      <p>Prices stay on this device until you export a backup from Settings.</p>
+    </div>
+  `;
+  window.scrollTo(0, 0);
 }
 
 async function renderHistory(route) {
@@ -1224,6 +1237,7 @@ async function route() {
     applyTableChrome();
     if (current.name === "home") await renderHome();
     else if (current.name === "settings") await renderSettings();
+    else if (current.name === "about") renderAbout();
     else if (current.name === "history") await renderHistory(current);
     else await renderForm(current);
   } catch (error) {
