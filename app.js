@@ -557,21 +557,29 @@ async function renderHome({ keepScroll = false, partial = false } = {}) {
                 ${thumb ? `<img class="thumb" src="${thumb}" alt="" />` : ""}
                 <div class="item-copy">
                   <a class="item-link" href="#/history/${encodeURIComponent(row.item)}">${escapeHtml(row.item)}</a>
-                  ${size ? `<span class="meta">${escapeHtml(size)}</span>` : `<span class="meta">Size not set</span>`}
-                  ${row.category ? `<span class="meta">${escapeHtml(row.category)}</span>` : ""}
                   ${underTarget ? `<span class="badge badge-target">Under target</span>` : ""}
                   ${row.lowest ? `<span class="badge">Lowest</span>` : ""}
                   ${noteHit ? `<span class="meta">${escapeHtml(row.notes)}</span>` : ""}
                 </div>
               </div>
             </td>
-            <td class="num col-price">${formatMoney(row.price, currency)}</td>
-            <td class="col-store">${row.store ? escapeHtml(row.store) : "—"}</td>
+            <td class="num col-price">
+              <div class="cell-stack">
+                <span>${formatMoney(row.price, currency)}</span>
+                <span class="meta">${size ? escapeHtml(size) : "Size not set"}</span>
+              </div>
+            </td>
+            <td class="col-store">
+              <div class="cell-stack">
+                <span>${row.store ? escapeHtml(row.store) : "—"}</span>
+                ${row.category ? `<span class="meta">${escapeHtml(row.category)}</span>` : ""}
+              </div>
+            </td>
             <td class="col-date">${prettyDate(row.checkedAt)}</td>
             <td class="num unit col-unit">
               ${
                 row.compared
-                  ? `<div class="unit-price"><strong>${formatMoney(row.compared.value, currency)}</strong><span class="per">/ ${escapeHtml(row.compared.short)}</span>${deltaHtml(row)}</div>`
+                  ? `<div class="unit-price"><span class="unit-amount">${formatMoney(row.compared.value, currency)}</span><span class="per">/ ${escapeHtml(row.compared.short)}</span>${deltaHtml(row)}</div>`
                   : `<span class="meta">Add a size</span>`
               }
             </td>

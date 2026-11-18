@@ -531,9 +531,25 @@ html[data-freeze="1"] .prices tbody tr.is-under-target td.col-item {
 
 .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
+.cell-stack {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.col-price .cell-stack { justify-items: end; }
+
+.cell-stack .meta {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .unit-price { display: grid; justify-items: end; gap: 2px; }
-.unit-price strong { font-weight: 700; }
-.per { color: var(--muted); font-size: 12px; font-weight: 600; }
+.unit-amount {
+  color: var(--accent);
+  font-weight: 500;
+}
+.per { color: var(--muted); font-size: 12px; font-weight: 500; }
 
 .delta { font-size: 12px; font-weight: 700; }
 .delta.down { color: var(--down); }
